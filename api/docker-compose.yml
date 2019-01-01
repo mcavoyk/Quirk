@@ -1,0 +1,12 @@
+version: "3"
+
+services:
+  db:
+    image: mysql:8.0.13
+    command: mysqld --default-authentication-plugin=mysql_native_password
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: quirkdb
+    ports:
+      - "42333:3306"

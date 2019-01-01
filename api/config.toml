@@ -1,0 +1,10 @@
+[server]
+port = 5005
+tls_disable = true
+tls_cert_file = "./dev-keys/tls.crt"
+tls_key_file = "./dev-keys/tls.key"
+
+[database]
+address = "localhost:42333"
+username = "root"
+password = "root"
