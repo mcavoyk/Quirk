@@ -3,17 +3,18 @@ package server
 import (
 	"net/http"
 
+	"../auth"
 	"../models"
 	"github.com/gin-gonic/gin"
 )
 
 type Env struct {
-	db *models.DB
+	DB *models.DB
+	J  *auth.JWTStorage
 }
 
-func NewRouter(db *models.DB) http.Handler {
+func NewRouter(env *Env) http.Handler {
 	router := gin.Default()
-	env := &Env{db: db}
 	loadRoutes(router, env)
 	return router
 }

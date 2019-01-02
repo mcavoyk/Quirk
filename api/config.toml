@@ -8,3 +8,9 @@ tls_key_file = "./dev-keys/tls.key"
 address = "localhost:42333"
 username = "root"
 password = "root"
+
+[auth]
+expiry = 168
+private_key_type = "file" # "file" only type currently supported
+private_key = "auth/keys/devRSA.key"
+public_key = "auth/keys/devRSA.key.pub"

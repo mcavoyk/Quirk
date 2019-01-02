@@ -7,14 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func (env *Env) HealthCheck(c *gin.Context) {
-	err := env.db.DB.DB().Ping()
-	if err != nil {
-
-	}
-	c.JSON(http.StatusOK, gin.H{"message": "healthy"})
-}
-
 func (env *Env) PostGet(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
@@ -24,7 +16,7 @@ func (env *Env) PostGet(c *gin.Context) {
 		return
 	}
 
-	post := env.db.GetPost(id)
+	post := env.DB.GetPost(id)
 	c.JSON(http.StatusOK, post)
 }
 
@@ -37,7 +29,7 @@ func (env *Env) PostDelete(c *gin.Context) {
 		return
 	}
 
-	env.db.DeletePost(id)
+	env.DB.DeletePost(id)
 	c.JSON(http.StatusOK, http.StatusText(http.StatusOK))
 }
 
@@ -47,7 +39,7 @@ func (env *Env) PostPatch(c *gin.Context) {
 		return
 	}
 
-	env.db.InsertPost(post)
+	env.DB.InsertPost(post)
 	c.JSON(http.StatusOK, http.StatusText(http.StatusOK))
 }
 
@@ -57,6 +49,6 @@ func (env *Env) PostPost(c *gin.Context) {
 		return
 	}
 
-	env.db.UpdatePost(post)
+	env.DB.UpdatePost(post)
 	c.JSON(http.StatusOK, http.StatusText(http.StatusOK))
 }

@@ -7,6 +7,8 @@ import (
 
 func loadRoutes(router *gin.Engine, env *Env) {
 	router.GET("/health", env.HealthCheck)
+	router.GET("/login", env.CreateToken)
+	router.GET("/auth/signing", env.SigningKeyGet)
 	router.Use(auth.VerifyUser)
 
 	router.GET("/post/:id", env.PostGet)

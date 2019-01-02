@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"time"
 
+	"./auth"
 	"./models"
 	"./server"
 	"github.com/spf13/viper"
@@ -23,28 +24,21 @@ func main() {
 		log.Fatalf("Unable to read configuration: %s", err.Error())
 	}
 
-	var db *models.DB
+	jwtInfo, err := auth.InitJWT(config.GetInt("auth.expiry"),
+								config.GetString("auth.private_key_type"),
+								config.GetString("auth.private_key"),
+								config.GetString("auth.public_key"))
 
-	for true {
-		dbConnection := fmt.Sprintf("%s:%s@tcp(%s)/quirkdb",
-			config.GetString("database.username"),
-			config.GetString("database.password"),
-			config.GetString("database.address"))
-
-		log.Printf("Attempting to connect to database [%s]\n", dbConnection)
-
-		db, err = models.InitDB(dbConnection + "?charset=utf8&parseTime=True")
-		if err == nil {
-			break
-		}
-		log.Printf("Unable to connect to database: %s", err.Error())
-		time.Sleep(5 * time.Second)
+	if err != nil {
+		log.Fatalf("Unable to setup authentication: %s", err.Error())
 	}
+
+	db := initDB(config)
 	defer db.Close()
 
 	url := fmt.Sprintf("%s:%d", config.GetString("server.address"), config.GetInt("server.port"))
 	log.Printf("Starting server on [%s]", url)
-	handler := server.NewRouter(db)
+	handler := server.NewRouter(&server.Env{DB: db, J: jwtInfo})
 	srv := &http.Server{
 		Addr:         url,
 		Handler:      handler,
@@ -76,4 +70,25 @@ func initConfig() (*viper.Viper, error) {
 	config.WatchConfig()
 	err := config.ReadInConfig()
 	return config, err
+}
+
+func initDB(config *viper.Viper) *models.DB {
+	var db *models.DB
+	var err error
+	for true {
+		dbConnection := fmt.Sprintf("%s:%s@tcp(%s)/quirkdb",
+			config.GetString("database.username"),
+			config.GetString("database.password"),
+			config.GetString("database.address"))
+
+		log.Printf("Attempting to connect to database [%s]\n", dbConnection)
+
+		db, err = models.InitDB(dbConnection + "?charset=utf8&parseTime=True")
+		if err == nil {
+			break
+		}
+		log.Printf("Unable to connect to database: %s\n", err.Error())
+		time.Sleep(5 * time.Second)
+	}
+	return db
 }
