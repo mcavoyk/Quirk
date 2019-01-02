@@ -10,12 +10,10 @@ func loadRoutes(router *gin.Engine, env *Env) {
 	router.Use(auth.VerifyUser)
 
 	router.GET("/post/:id", env.PostGet)
-	router.PATCH("/posts/:id", env.PostPatch)
-	router.DELETE("/posts/:id", env.PostDelete)
+	router.PATCH("/post/:id", env.PostPatch)
+	router.DELETE("/post/:id", env.PostDelete)
 	router.POST("/post", env.PostPost)
 
-	router.GET("/comment/:id", env.CommentGet)
-	router.PATCH("/comment/:id", env.CommentPatch)
-	router.DELETE("/comment/:id", env.CommentDelete)
-	router.POST("/comment", env.CommentPost)
+	router.POST("/vote", env.VotePost)
+
 }

@@ -6,21 +6,26 @@ import (
 	"github.com/segmentio/ksuid"
 )
 
-// LatLng represents a location on the Earth
-type LatLng struct {
-	Lat float64
-	Lng float64
-}
-
-// Post represents a post on quirk
+// Post represents top level content, viewable based on a user's location
+// and the Posts Lat/Long
 type Post struct {
-	ID        string
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	User      string
-	Title     string
-	Latitude  float64 `gorm:"index:latitude"`
-	Longitude float64 `gorm:"index:longitude"`
+	ID          string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	User        string `gorm:"index:user"`
+	ParentID    string
+	Depth       int `gorm:"index:depth"`
+	Title       string
+	Body        string `sql:"type:text"`
+	Score       int    `gorm:"index:score"`
+	AccessType  string
+	Vote        []Vote `gorm:"ForeignKey:ID"`
+	VoteState   int    `gorm:"-"`
+	NumComments int
+	Collapsed   bool
+	ColReason   string
+	Latitude    float64 `gorm:"index:latitude"`
+	Longitude   float64 `gorm:"index:longitude"`
 }
 
 func (db *DB) InsertPost(post *Post) {
@@ -42,7 +47,7 @@ func (db *DB) UpdatePost(post *Post) {
 }
 
 func (db *DB) DeletePost(id string) {
-	if id == "" { // Gorm deletes all records if primary key is blank,
+	if id == "" { // Gorm deletes all records if primary key is blank
 		return
 	}
 	db.Delete(&Post{ID: id})

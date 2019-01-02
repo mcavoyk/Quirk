@@ -15,6 +15,6 @@ func InitDB(connection string) (*DB, error) {
 		return nil, err
 	}
 
-	db.AutoMigrate(&Post{}, &Comment{})
+	db.AutoMigrate(&Post{}, &Vote{})
 	return &DB{db}, nil
 }
