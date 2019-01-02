@@ -9,11 +9,16 @@ import (
 )
 
 type Env struct {
-	DB *models.DB
-	J  *auth.JWTStorage
+	DB    *models.DB
+	J     *auth.JWTStorage
+	Auth  bool
+	Debug bool
 }
 
 func NewRouter(env *Env) http.Handler {
+	if !env.Debug {
+		gin.SetMode(gin.ReleaseMode)
+	}
 	router := gin.Default()
 	loadRoutes(router, env)
 	return router

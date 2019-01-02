@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"time"
+
+	"github.com/anacrolix/log"
 
 	"github.com/segmentio/ksuid"
 
@@ -20,19 +23,42 @@ type JWTStorage struct {
 	privateKey   *rsa.PrivateKey
 }
 
-func ExtractUser(c *gin.Context) string {
-	return c.GetHeader("User")
+func ExtractToken(c *gin.Context) string {
+	authHeader := c.GetHeader("Authorization")
+	headerSplit := strings.Split(authHeader, " ")
+	if len(headerSplit) < 2 {
+		return ""
+	}
+	return headerSplit[1]
 }
 
-func VerifyUser(c *gin.Context) {
-	user := ExtractUser(c)
-	// TODO: Verify user ID is in the proper GUID format
-	if user == "" {
+func (j *JWTStorage) VerifyUser(c *gin.Context) {
+	token, err := jwt.Parse(ExtractToken(c), func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+
+		return j.PublicKey, nil
+	})
+
+	if err != nil {
+		log.Printf("Error parsing JWT: %s\n", err.Error())
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-			"message": "Invalid User authentication",
+			"Error": "Unauthorized",
 		})
 		return
 	}
+
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		c.Set("user", claims["sub"])
+	} else {
+		log.Printf("Invalid JWT Format\n")
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+			"Error": "Unauthorized",
+		})
+		return
+	}
+
 	c.Next()
 }
 
@@ -42,7 +68,7 @@ func (j *JWTStorage) NewAnonToken() string {
 		Subject:   ksuid.New().String(),
 		ExpiresAt: time.Now().Add(time.Duration(j.ExpiresAt) * time.Hour).Unix(),
 		Issuer:    "Quirk",
-		IssuedAt: time.Now().Unix(),
+		IssuedAt:  time.Now().Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)

@@ -1,15 +1,18 @@
 package server
 
 import (
-	"../auth"
 	"github.com/gin-gonic/gin"
 )
 
 func loadRoutes(router *gin.Engine, env *Env) {
 	router.GET("/health", env.HealthCheck)
-	router.GET("/login", env.CreateToken)
-	router.GET("/auth/signing", env.SigningKeyGet)
-	router.Use(auth.VerifyUser)
+
+	if env.Auth {
+		router.GET("/login", env.CreateToken)
+		router.GET("/auth/signing", env.SigningKeyGet)
+		router.Use(env.J.VerifyUser)
+		router.GET("/auth/check", env.HealthCheck)
+	}
 
 	router.GET("/post/:id", env.PostGet)
 	router.PATCH("/post/:id", env.PostPatch)

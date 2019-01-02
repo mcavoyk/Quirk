@@ -1,5 +1,6 @@
 [server]
 port = 5005
+debug_mode = false
 tls_disable = true
 tls_cert_file = "./dev-keys/tls.crt"
 tls_key_file = "./dev-keys/tls.key"
@@ -10,6 +11,7 @@ username = "root"
 password = "root"
 
 [auth]
+disable = false
 expiry = 168
 private_key_type = "file" # "file" only type currently supported
 private_key = "auth/keys/devRSA.key"

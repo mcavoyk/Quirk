@@ -24,13 +24,20 @@ func main() {
 		log.Fatalf("Unable to read configuration: %s", err.Error())
 	}
 
-	jwtInfo, err := auth.InitJWT(config.GetInt("auth.expiry"),
-								config.GetString("auth.private_key_type"),
-								config.GetString("auth.private_key"),
-								config.GetString("auth.public_key"))
+	authDisabled := config.GetBool("auth.disable")
+	if authDisabled {
+		log.Println("Authentication routes and middleware disabled")
+	}
 
-	if err != nil {
+	jwtInfo, err := auth.InitJWT(config.GetInt("auth.expiry"),
+		config.GetString("auth.private_key_type"),
+		config.GetString("auth.private_key"),
+		config.GetString("auth.public_key"))
+
+	if err != nil && !authDisabled {
 		log.Fatalf("Unable to setup authentication: %s", err.Error())
+	} else if !authDisabled {
+		log.Println("Authentication routes and middleware enabled")
 	}
 
 	db := initDB(config)
@@ -38,7 +45,7 @@ func main() {
 
 	url := fmt.Sprintf("%s:%d", config.GetString("server.address"), config.GetInt("server.port"))
 	log.Printf("Starting server on [%s]", url)
-	handler := server.NewRouter(&server.Env{DB: db, J: jwtInfo})
+	handler := server.NewRouter(&server.Env{DB: db, J: jwtInfo, Auth: !authDisabled, Debug: config.GetBool("server.debug_mode")})
 	srv := &http.Server{
 		Addr:         url,
 		Handler:      handler,
@@ -90,5 +97,6 @@ func initDB(config *viper.Viper) *models.DB {
 		log.Printf("Unable to connect to database: %s\n", err.Error())
 		time.Sleep(5 * time.Second)
 	}
+	log.Println("Database connection established")
 	return db
 }
