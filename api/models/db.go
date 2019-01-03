@@ -3,6 +3,7 @@ package models
 import (
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
+	"github.com/segmentio/ksuid"
 )
 
 type DB struct {
@@ -15,6 +16,10 @@ func InitDB(connection string) (*DB, error) {
 		return nil, err
 	}
 
-	db.AutoMigrate(&Post{}, &Vote{})
+	db.AutoMigrate(&Post{}, &Vote{}, &User{})
 	return &DB{db}, nil
+}
+
+func NewGUID() string {
+	return ksuid.New().String()
 }

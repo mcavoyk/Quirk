@@ -3,8 +3,8 @@ package server
 import (
 	"net/http"
 
-	"../models"
 	"github.com/gin-gonic/gin"
+	"github.com/mcavoyk/quirk/models"
 )
 
 func (env *Env) VotePost(c *gin.Context) {

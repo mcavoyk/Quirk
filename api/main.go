@@ -9,9 +9,8 @@ import (
 	"os/signal"
 	"time"
 
-	"./auth"
-	"./models"
-	"./server"
+	"github.com/mcavoyk/quirk/models"
+	"github.com/mcavoyk/quirk/server"
 	"github.com/spf13/viper"
 )
 
@@ -24,28 +23,12 @@ func main() {
 		log.Fatalf("Unable to read configuration: %s", err.Error())
 	}
 
-	authDisabled := config.GetBool("auth.disable")
-	if authDisabled {
-		log.Println("Authentication routes and middleware disabled")
-	}
-
-	jwtInfo, err := auth.InitJWT(config.GetInt("auth.expiry"),
-		config.GetString("auth.private_key_type"),
-		config.GetString("auth.private_key"),
-		config.GetString("auth.public_key"))
-
-	if err != nil && !authDisabled {
-		log.Fatalf("Unable to setup authentication: %s", err.Error())
-	} else if !authDisabled {
-		log.Println("Authentication routes and middleware enabled")
-	}
-
 	db := initDB(config)
 	defer db.Close()
 
 	url := fmt.Sprintf("%s:%d", config.GetString("server.address"), config.GetInt("server.port"))
 	log.Printf("Starting server on [%s]", url)
-	handler := server.NewRouter(&server.Env{DB: db, J: jwtInfo, Auth: !authDisabled, Debug: config.GetBool("server.debug_mode")})
+	handler := server.NewRouter(&server.Env{DB: db, Debug: config.GetBool("server.debug_mode")})
 	srv := &http.Server{
 		Addr:         url,
 		Handler:      handler,

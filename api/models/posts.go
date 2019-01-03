@@ -14,10 +14,9 @@ type Post struct {
 	UpdatedAt   time.Time
 	User        string `gorm:"index:user"`
 	ParentID    string
-	Depth       int `gorm:"index:depth"`
-	Title       string
-	Body        string `sql:"type:text"`
-	Score       int    `gorm:"index:score"`
+	Depth       int         `gorm:"index:depth"`
+	Content     interface{} `sql:"type:JSON"`
+	Score       int         `gorm:"index:score"`
 	AccessType  string
 	Vote        []Vote `gorm:"ForeignKey:ID"`
 	VoteState   int    `gorm:"-"`
@@ -30,6 +29,7 @@ type Post struct {
 
 func (db *DB) InsertPost(post *Post) {
 	post.ID = ksuid.New().String()
+	post.CreatedAt = time.Now()
 	db.Create(post)
 	return
 }
