@@ -2,19 +2,32 @@ package server
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/mcavoyk/quirk/models"
 )
 
 func (env *Env) VotePost(c *gin.Context) {
-	vote := &models.Vote{}
-	if err := c.Bind(vote); err != nil {
+	postID := c.Param("postID")
+	user := c.GetString(UserContext)
+	stateStr := c.Query("state")
+
+	state, err := strconv.Atoi(stateStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"Error": "Invalid or missing format for value 'state'",
+		})
 		return
 	}
 
-	vote.User = c.GetString(UserContext)
-	if err := env.DB.InsertOrUpdateVote(vote); err != nil {
+	newVote := &models.Vote{
+		PostID: postID,
+		User:   user,
+		State:  state,
+	}
+	env.log.Printf("Received vote: %+v\n", newVote)
+	if err := env.DB.InsertOrUpdateVote(newVote); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"Error": err.Error(),
 		})
