@@ -1,7 +1,10 @@
 package server
 
 import (
+	"fmt"
+	"github.com/mcavoyk/quirk/location"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/mcavoyk/quirk/models"
@@ -12,16 +15,16 @@ type Post struct {
 	ParentID   string
 	Content    string
 	AccessType string
-	Latitude   float64
-	Longitude  float64
+	Lat        float64
+	Lon        float64
 }
 
 func convertPost(src *Post, dst *models.Post) *models.Post {
 	dst.ParentID = src.ParentID
 	dst.Content = src.Content
 	dst.AccessType = src.AccessType
-	dst.Latitude = src.Latitude
-	dst.Longitude = src.Longitude
+	dst.Lat = location.ToRadians(src.Lat)
+	dst.Lon = location.ToRadians(src.Lon)
 	return dst
 }
 
@@ -85,4 +88,37 @@ func (env *Env) PostPost(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"ID": postID,
 	})
+}
+
+func (env *Env) PostsGet(c *gin.Context) {
+	latStr := c.Query("lat")
+	lonStr := c.Query("lon")
+	pageStr := c.DefaultQuery("page", "1")
+	pageSizeStr := c.DefaultQuery("pagesize", "25")
+
+	lat, latErr := strconv.ParseFloat(latStr, 64)
+	lon, lonErr := strconv.ParseFloat(lonStr, 64)
+
+	if latErr != nil || lonErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"Error": "Invalid latitude and longitude format",
+		})
+	}
+
+	page, pageErr := strconv.Atoi(pageStr)
+	pageSize, pageSizeErr := strconv.Atoi(pageSizeStr)
+
+	if pageErr != nil || pageSizeErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"Error": "Invalid page and pagesize format",
+		})
+		return
+	}
+
+	lat = location.ToRadians(lat)
+	lon = location.ToRadians(lon)
+	fmt.Printf("Received coords (%f, %f)\n", lat, lon)
+
+	posts := env.DB.PostsByDistance(lat, lon, int(page), int(pageSize))
+	c.JSON(http.StatusOK, posts)
 }

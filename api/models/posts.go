@@ -1,7 +1,10 @@
 package models
 
 import (
+	"fmt"
 	"time"
+
+	"github.com/mcavoyk/quirk/location"
 )
 
 // Post represents top level content, viewable based on a user's location
@@ -21,8 +24,8 @@ type Post struct {
 	NumComments int
 	Collapsed   bool
 	ColReason   string
-	Latitude    float64 `gorm:"index:latitude"`
-	Longitude   float64 `gorm:"index:longitude"`
+	Lat         float64 `gorm:"index:latitude"`
+	Lon         float64 `gorm:"index:longitude"`
 }
 
 func (db *DB) InsertPost(post *Post) string {
@@ -52,8 +55,44 @@ func (db *DB) DeletePost(id string) {
 	return
 }
 
-func (db *DB) GetPosts() []Post {
+func (db *DB) PostsByDistance(lat, lon float64, page, pageSize int) []Post {
 	posts := make([]Post, 0)
-	db.Find(&posts)
+	distance := 5.0 // KM
+	points := location.BoundingPoints(&location.Point{lat, lon}, distance)
+	minLat := points[0].Lat
+	minLon := points[0].Lon
+	maxLat := points[1].Lat
+	maxLon := points[1].Lon
+
+	fmt.Printf("Using (%f, %f), calculated bounding points:\n (%f, %f) and (%f, %f)\n", lat, lon, minLat, minLon, maxLat, maxLon)
+
+	sql := fmt.Sprintf("SELECT * FROM posts WHERE "+
+		"(lat >= %f AND lat <= %f) AND (lon >= %f AND lon <= %f) "+
+		"AND ACOS(SIN(%f) * SIN(lat) + COS(%f) * COS(lat) * COS(lon - (%f))) <= %f",
+		minLat, maxLat, minLon, maxLon,
+		lat, lat, lon, distance/location.EarthRadius)
+
+	fmt.Printf("%s\n", sql)
+	rows, err := db.Raw(sql).Rows()
+	if err != nil {
+		fmt.Printf("SQL Error: %s\n", err.Error())
+		return nil
+	}
+
+	defer rows.Close()
+
+	start := (page - 1) * pageSize
+	end := start + pageSize
+	index := 0
+	for true {
+		if !rows.Next() || index > end {
+			break
+		}
+
+		newPost := Post{}
+		_ = db.ScanRows(rows, &newPost)
+		posts = append(posts, newPost)
+		index++
+	}
 	return posts
 }

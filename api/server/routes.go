@@ -21,5 +21,7 @@ func loadRoutes(router *gin.Engine, env *Env) {
 		api.POST("/post", env.PostPost)
 
 		api.POST("/vote", env.VotePost)
+
+		api.GET("/posts", env.PostsGet)
 	}
 }
