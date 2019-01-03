@@ -1,4 +1,4 @@
-## Authentication API
+## Authentication
 
 The authentication API needs no input and returns a session token.
 

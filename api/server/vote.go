@@ -13,6 +13,7 @@ func (env *Env) VotePost(c *gin.Context) {
 		return
 	}
 
+	vote.User = c.GetString(UserContext)
 	if err := env.DB.InsertOrUpdateVote(vote); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"Error": err.Error(),

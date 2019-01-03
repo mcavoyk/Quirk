@@ -8,16 +8,21 @@ import (
 )
 
 type Post struct {
+	ID         string
 	ParentID   string
-	Title      string
-	Content    interface{}
+	Content    string
 	AccessType string
 	Latitude   float64
 	Longitude  float64
 }
 
-func convertPost(src *Post) *models.Post {
-	return &models.Post{}
+func convertPost(src *Post, dst *models.Post) *models.Post {
+	dst.ParentID = src.ParentID
+	dst.Content = src.Content
+	dst.AccessType = src.AccessType
+	dst.Latitude = src.Latitude
+	dst.Longitude = src.Longitude
+	return dst
 }
 
 func (env *Env) PostGet(c *gin.Context) {
@@ -44,9 +49,7 @@ func (env *Env) PostDelete(c *gin.Context) {
 
 	currentPost := env.DB.GetPost(id)
 	if currentPost.User != c.GetString(UserContext) {
-		c.JSON(http.StatusForbidden, gin.H{
-			"Invalid": "Post ID can not be empty",
-		})
+		c.Status(http.StatusForbidden)
 		return
 	}
 	env.DB.DeletePost(id)
@@ -54,12 +57,18 @@ func (env *Env) PostDelete(c *gin.Context) {
 }
 
 func (env *Env) PostPatch(c *gin.Context) {
-	post := &models.Post{}
+	post := &Post{}
 	if err := c.Bind(post); err != nil {
 		return
 	}
+	existingPost := env.DB.GetPost(post.ID)
+	if existingPost.User != c.GetString(UserContext) {
+		c.Status(http.StatusForbidden)
+		return
 
-	env.DB.UpdatePost(post)
+	}
+	newPost := convertPost(post, existingPost)
+	env.DB.UpdatePost(newPost)
 	c.JSON(http.StatusOK, http.StatusText(http.StatusOK))
 }
 
@@ -69,9 +78,11 @@ func (env *Env) PostPost(c *gin.Context) {
 		return
 	}
 
-	newPost := convertPost(post)
+	newPost := convertPost(post, &models.Post{})
 	newPost.User = c.GetString(UserContext)
 
-	env.DB.InsertPost(newPost)
-	c.JSON(http.StatusOK, http.StatusText(http.StatusOK))
+	postID := env.DB.InsertPost(newPost)
+	c.JSON(http.StatusOK, gin.H{
+		"ID": postID,
+	})
 }

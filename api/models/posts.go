@@ -2,8 +2,6 @@ package models
 
 import (
 	"time"
-
-	"github.com/segmentio/ksuid"
 )
 
 // Post represents top level content, viewable based on a user's location
@@ -14,9 +12,9 @@ type Post struct {
 	UpdatedAt   time.Time
 	User        string `gorm:"index:user"`
 	ParentID    string
-	Depth       int         `gorm:"index:depth"`
-	Content     interface{} `sql:"type:JSON"`
-	Score       int         `gorm:"index:score"`
+	Depth       int    `gorm:"index:depth"`
+	Content     string `sql:"type:JSON"`
+	Score       int    `gorm:"index:score"`
 	AccessType  string
 	Vote        []Vote `gorm:"ForeignKey:ID"`
 	VoteState   int    `gorm:"-"`
@@ -27,11 +25,11 @@ type Post struct {
 	Longitude   float64 `gorm:"index:longitude"`
 }
 
-func (db *DB) InsertPost(post *Post) {
-	post.ID = ksuid.New().String()
+func (db *DB) InsertPost(post *Post) string {
+	post.ID = NewGUID()
 	post.CreatedAt = time.Now()
 	db.Create(post)
-	return
+	return post.ID
 }
 
 func (db *DB) GetPost(id string) *Post {

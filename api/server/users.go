@@ -23,6 +23,7 @@ func (env *Env) UserVerify(c *gin.Context) {
 	}
 	existingUser.UsedAt = time.Now()
 	env.DB.UserUpdate(existingUser)
+	c.Set(UserContext, existingUser.ID)
 	c.Next()
 }
 
