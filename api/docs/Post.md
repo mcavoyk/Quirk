@@ -5,7 +5,7 @@ A post on Quirk is therefore used both for top level threads as well
 as for comments to any other posts.
 
 ### Create Vote
-`POST /api/post/` Creates a top level post
+`POST /api/post` Creates a top level post
 
 `POST /api/post/:parentID/post` Creates post in reply to another post
 
