@@ -11,8 +11,6 @@ import (
 )
 
 type Post struct {
-	ID         string
-	ParentID   string
 	Content    string
 	AccessType string
 	Lat        float64
@@ -20,7 +18,6 @@ type Post struct {
 }
 
 func convertPost(src *Post, dst *models.Post) *models.Post {
-	dst.ParentID = src.ParentID
 	dst.Content = src.Content
 	dst.AccessType = src.AccessType
 	dst.Lat = location.ToRadians(src.Lat)
@@ -60,11 +57,12 @@ func (env *Env) PostDelete(c *gin.Context) {
 }
 
 func (env *Env) PostPatch(c *gin.Context) {
+	id := c.Param("id")
 	post := &Post{}
 	if err := c.Bind(post); err != nil {
 		return
 	}
-	existingPost := env.DB.GetPost(post.ID)
+	existingPost := env.DB.GetPost(id)
 	if existingPost.User != c.GetString(UserContext) {
 		c.Status(http.StatusForbidden)
 		return
@@ -76,6 +74,7 @@ func (env *Env) PostPatch(c *gin.Context) {
 }
 
 func (env *Env) PostPost(c *gin.Context) {
+	parentID := c.Param("postID")
 	post := &Post{}
 	if err := c.Bind(post); err != nil {
 		return
@@ -83,10 +82,12 @@ func (env *Env) PostPost(c *gin.Context) {
 
 	newPost := convertPost(post, &models.Post{})
 	newPost.User = c.GetString(UserContext)
+	newPost.ParentID = parentID
 
 	postID := env.DB.InsertPost(newPost)
 	c.JSON(http.StatusOK, gin.H{
 		"ID": postID,
+		"ParentID": parentID,
 	})
 }
 

@@ -1,14 +1,18 @@
 ## Post
 
-The Post API allows a user to create, update, read, or delete a post.
+Posts on Quirk represent pieces of content viewable to users.
+A post on Quirk is therefore used both for top level threads as well
+as for comments to any other posts.
 
 ### Create Vote
-`POST /api/post`
+`POST /api/post/` Creates a top level post
+
+`POST /api/post/:parentID/post` Creates post in reply to another post
 
 Example Request:
 
 ```http
-POST /api/auth/keys HTTP/1.1
+POST /api/post/1FEWViwSeKkQ8hqaVkM2crOezbj/post HTTP/1.1
 Accept: application/json
 Content-Type: application/json
 Authorization:Bearer 1FEToRKxL7aNTgGtYR91WszCvA
@@ -33,6 +37,7 @@ Content-Type: application/json
 
 {
 	"ID": "1FEj3nI39qajqfiVmxrpz9eexMQ"
+	"ParentID": "1FEWViwSeKkQ8hqaVkM2crOezbj"
 }
 ```
 
