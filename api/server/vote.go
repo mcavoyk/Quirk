@@ -9,7 +9,7 @@ import (
 )
 
 func (env *Env) VotePost(c *gin.Context) {
-	postID := c.Param("postID")
+	postID := c.Param("id")
 	user := c.GetString(UserContext)
 	stateStr := c.Query("state")
 

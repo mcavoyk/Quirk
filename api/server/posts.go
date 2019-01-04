@@ -74,7 +74,7 @@ func (env *Env) PostPatch(c *gin.Context) {
 }
 
 func (env *Env) PostPost(c *gin.Context) {
-	parentID := c.Param("postID")
+	parentID := c.Param("id")
 	post := &Post{}
 	if err := c.Bind(post); err != nil {
 		return
@@ -91,7 +91,16 @@ func (env *Env) PostPost(c *gin.Context) {
 	})
 }
 
-func (env *Env) PostsGet(c *gin.Context) {
+// PostsGet wraps search functions for posts
+func (env *Env) GetPosts(c *gin.Context) {
+	// Search by parent does not use lat/lon
+	parentID := c.Query("parent")
+	if parentID != "" {
+		posts := env.DB.PostsByParent(parentID)
+		c.JSON(http.StatusOK, posts)
+		return
+	}
+
 	latStr := c.Query("lat")
 	lonStr := c.Query("lon")
 	pageStr := c.DefaultQuery("page", "1")
