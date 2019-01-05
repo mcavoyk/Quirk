@@ -1,0 +1,27 @@
+version: "3"
+
+networks:
+    private:
+      driver: bridge
+
+services:
+  api:
+    image: quirk-api:latest
+    ports:
+      - "5005:5005"
+    networks:
+      - private
+    restart: on-failure
+    depends_on:
+      - db
+    environment:
+      - DATABASE.ADDRESS=db:3306
+
+  db:
+    image: mariadb:10.4.1
+    command: mysqld --default-authentication-plugin=mysql_native_password
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=quirkdb
+    networks:
+      - private

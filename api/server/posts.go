@@ -2,12 +2,12 @@ package server
 
 import (
 	"fmt"
-	"github.com/mcavoyk/quirk/location"
+	"github.com/mcavoyk/quirk/api/location"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/mcavoyk/quirk/models"
+	"github.com/mcavoyk/quirk/api/models"
 )
 
 type Post struct {

@@ -2,22 +2,26 @@ package config
 
 import (
 	"fmt"
-	"github.com/mcavoyk/quirk/models"
+	"github.com/mcavoyk/quirk/api/models"
 	"github.com/spf13/viper"
 	"log"
 )
 
-const Path = "config.toml"
+var Path string
 
-func InitConfig() (*viper.Viper, error) {
+func InitConfig(path string) (*viper.Viper, error) {
+	Path = path
 	config := viper.New()
 
 	config.SetTypeByDefaultValue(true)
 	log.Printf("Reading configuration in from [%s]\n", Path)
 	config.SetConfigFile(Path)
-	config.WatchConfig()
 	err := config.ReadInConfig()
-	return config, err
+	if err != nil {
+		return nil, err
+	}
+	config.AutomaticEnv()
+	return config, nil
 }
 
 func InitDB(config *viper.Viper) (*models.DB, error) {

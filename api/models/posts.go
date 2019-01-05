@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/mcavoyk/quirk/location"
+	"github.com/mcavoyk/quirk/api/location"
 )
 
 // Post represents top level content, viewable based on a user's location

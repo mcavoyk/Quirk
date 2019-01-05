@@ -9,20 +9,29 @@ import (
 	"os/signal"
 	"time"
 
-	configuration "github.com/mcavoyk/quirk/config"
+	"github.com/sirupsen/logrus"
 
-	"github.com/mcavoyk/quirk/server"
+	configuration "github.com/mcavoyk/quirk/api/config"
+
+	"github.com/mcavoyk/quirk/api/server"
 )
 
+const DefaultConfig = "config.toml"
+
 func main() {
-	config, err := configuration.InitConfig()
+	logrus.SetOutput(os.Stdout)
+	configPath := os.Getenv("CONFIG")
+	if configPath == "" {
+		configPath = DefaultConfig
+	}
+	config, err := configuration.InitConfig(configPath)
 	if err != nil {
 		log.Fatalf("Unable to read configuration: %s", err.Error())
 	}
 
 	db, err := configuration.InitDB(config)
 	if err != nil {
-		log.Fatalf("Unable to connect to database: %s", err.Error())
+		logrus.Fatalf("Unable to connect to database: %s", err.Error())
 	}
 	defer db.Close()
 
