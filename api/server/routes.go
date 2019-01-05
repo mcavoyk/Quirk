@@ -10,19 +10,20 @@ func loadRoutes(router *gin.Engine, env *Env) {
 	{
 		api.GET("/health", env.HealthCheck)
 
-		api.GET("/auth/token", env.UserCreate)
-		api.GET("/auth/token/:token", env.UserValidate)
+		api.GET("/auth/token", env.CreateUser)
+		api.GET("/auth/token/:token", env.ValidateUser)
 		api.Use(env.UserVerify)
 		router.NoRoute(noRoute)
 
-		api.GET("/post/:id", env.PostGet)
-		api.PATCH("/post/:id", env.PostPatch)
-		api.DELETE("/post/:id", env.PostDelete)
-		api.POST("/post/:postID/post", env.PostPost)
 		api.POST("/post", env.PostPost)
+		api.GET("/post/:id", env.GetPost)
+		api.PATCH("/post/:id", env.PatchPost)
+		api.DELETE("/post/:id", env.DeletePost)
 
-		api.POST("/post/:postID/vote", env.VotePost)
+		api.POST("/post/:id/post", env.PostPost)
+		api.GET("/post/:id/posts", env.GetPostsByPost)
+		api.POST("/post/:id/vote", env.PostVote)
 
-		api.GET("/posts", env.PostsGet)
+		api.GET("/posts", env.SearchPosts)
 	}
 }

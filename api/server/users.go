@@ -27,14 +27,14 @@ func (env *Env) UserVerify(c *gin.Context) {
 	c.Next()
 }
 
-func (env *Env) UserCreate(c *gin.Context) {
+func (env *Env) CreateUser(c *gin.Context) {
 	userID := env.DB.UserInsert(&models.User{IP: ip.Parse(c.Request)})
 	c.JSON(http.StatusOK, gin.H{
 		"token": userID,
 	})
 }
 
-func (env *Env) UserValidate(c *gin.Context) {
+func (env *Env) ValidateUser(c *gin.Context) {
 	userID := c.Param("token")
 	if userID == "" {
 		c.AbortWithStatus(http.StatusForbidden)

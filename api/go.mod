@@ -13,6 +13,7 @@ require (
 	github.com/mattn/go-isatty v0.0.4 // indirect
 	github.com/segmentio/ksuid v1.0.2
 	github.com/spf13/viper v1.3.1
+	github.com/stretchr/testify v1.2.2
 	gopkg.in/go-playground/validator.v8 v8.18.2
 	gopkg.in/go-playground/validator.v9 v9.24.0
 )
