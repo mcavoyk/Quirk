@@ -1,11 +1,11 @@
 [server]
 port = 5005
-debug_mode = true
+debug_mode = false
 tls_disable = true
 tls_cert_file = "./dev-keys/tls.crt"
 tls_key_file = "./dev-keys/tls.key"
 
 [database]
-address = "localhost:42333"
+address = "localhost:3306"
 username = "root"
 password = "root"
