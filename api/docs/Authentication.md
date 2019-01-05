@@ -1,4 +1,4 @@
-*[Quirk API](README.md) > Authentication*
+*[Quirk](../../README.md) > [Quirk API](../README.md) > Authentication*
 
 ---
 

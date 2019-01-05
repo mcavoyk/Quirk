@@ -1,4 +1,4 @@
-*[Quirk API](README.md) > Posts*
+*[Quirk](../../README.md) > [Quirk API](../README.md) > Posts*
 
 ---
 
@@ -8,11 +8,17 @@ Posts on Quirk represent pieces of content viewable to users.
 A post on Quirk is therefore used both for top level threads as well
 as for comments to any other posts.
 
+Actions: 
 
-###### [Create post](#create-post)
-###### [Delete post](#delete-post)
-###### [Search posts by location](#search-posts-by-location)
-###### [Get post replies](#get-post-replies)
+* [Create post](#create-post)
+
+* [Delete post](#delete-post)
+
+* [Search posts by location](#search-posts-by-location)
+
+* [Get post replies](#get-post-replies)
+
+---
 
 ### Create post
 `POST /api/post` Creates a top level post

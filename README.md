@@ -9,4 +9,4 @@ This project is currently in-development.
 
 ### API
 
-View the [Quirk API](api/docs/README.md) documention.
+View the [Quirk API](api/README.md) documention.
