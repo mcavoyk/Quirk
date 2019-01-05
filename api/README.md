@@ -1,4 +1,4 @@
-*[Quirk](../../README.md) > Quirk API*
+*[Quirk](../README.md) > Quirk API*
 
 ---
 
