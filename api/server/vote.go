@@ -8,7 +8,7 @@ import (
 	"github.com/mcavoyk/quirk/models"
 )
 
-func (env *Env) VotePost(c *gin.Context) {
+func (env *Env) PostVote(c *gin.Context) {
 	postID := c.Param("id")
 	user := c.GetString(UserContext)
 	stateStr := c.Query("state")

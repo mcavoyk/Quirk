@@ -25,7 +25,7 @@ func convertPost(src *Post, dst *models.Post) *models.Post {
 	return dst
 }
 
-func (env *Env) PostGet(c *gin.Context) {
+func (env *Env) GetPost(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -38,7 +38,7 @@ func (env *Env) PostGet(c *gin.Context) {
 	c.JSON(http.StatusOK, post)
 }
 
-func (env *Env) PostDelete(c *gin.Context) {
+func (env *Env) DeletePost(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -56,7 +56,7 @@ func (env *Env) PostDelete(c *gin.Context) {
 	c.JSON(http.StatusOK, http.StatusText(http.StatusOK))
 }
 
-func (env *Env) PostPatch(c *gin.Context) {
+func (env *Env) PatchPost(c *gin.Context) {
 	id := c.Param("id")
 	post := &Post{}
 	if err := c.Bind(post); err != nil {
@@ -92,15 +92,7 @@ func (env *Env) PostPost(c *gin.Context) {
 }
 
 // PostsGet wraps search functions for posts
-func (env *Env) GetPosts(c *gin.Context) {
-	// Search by parent does not use lat/lon
-	parentID := c.Query("parent")
-	if parentID != "" {
-		posts := env.DB.PostsByParent(parentID)
-		c.JSON(http.StatusOK, posts)
-		return
-	}
-
+func (env *Env) SearchPosts(c *gin.Context) {
 	latStr := c.Query("lat")
 	lonStr := c.Query("lon")
 	pageStr := c.DefaultQuery("page", "1")
@@ -131,4 +123,11 @@ func (env *Env) GetPosts(c *gin.Context) {
 
 	posts := env.DB.PostsByDistance(lat, lon, int(page), int(pageSize))
 	c.JSON(http.StatusOK, posts)
+}
+
+func (env *Env) GetPostsByPost(c *gin.Context) {
+	id := c.Param("id")
+	posts := env.DB.PostsByParent(id)
+	c.JSON(http.StatusOK, posts)
+	return
 }
