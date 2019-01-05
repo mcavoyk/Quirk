@@ -1,3 +1,7 @@
+*[Quirk API](README.md) > Authentication*
+
+---
+
 ## Authentication
 
 The authentication API needs no input and returns a session token.

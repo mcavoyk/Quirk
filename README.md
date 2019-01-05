@@ -5,3 +5,8 @@
 Quirk is an open source, hyperlocal anonymous social media platform for mobile and web clients.
 
 This project is currently in-development.
+
+
+### API
+
+View the [Quirk API](api/docs/README.md) documention.

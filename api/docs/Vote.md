@@ -1,4 +1,8 @@
-## Vote
+*[Quirk API](README.md) > Voting*
+
+---
+
+## Voting
 
 A vote on Quirk represents an up vote, abstain vote, or downvote
 (1, 0, -1) on some post. 

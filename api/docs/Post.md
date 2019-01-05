@@ -1,4 +1,8 @@
-## Post
+*[Quirk API](README.md) > Posts*
+
+---
+
+## Posts
 
 Posts on Quirk represent pieces of content viewable to users.
 A post on Quirk is therefore used both for top level threads as well

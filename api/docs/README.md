@@ -2,8 +2,9 @@
 
 The Quirk mobile and web applications utilize the Quirk RESTful API.
 
-API Resources
--
+#### API Resources
+
+---
 
 The following API resources are available:
 
