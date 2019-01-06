@@ -17,6 +17,16 @@ func InitDB(connection string) (*DB, error) {
 	}
 
 	db.AutoMigrate(&Post{}, &Vote{}, &User{})
+
+	db.Exec("CREATE TRIGGER score_insert " +
+		"AFTER INSERT ON votes " +
+		"FOR EACH ROW " +
+		"UPDATE posts p SET p.score = p.score + NEW.state WHERE p.id = NEW.post_id")
+
+	db.Exec("CREATE TRIGGER score_update " +
+		"AFTER UPDATE ON votes " +
+		"FOR EACH ROW " +
+		"UPDATE posts p SET p.score = p.score - OLD.state + NEW.state WHERE p.id = NEW.post_id")
 	return &DB{db}, nil
 }
 

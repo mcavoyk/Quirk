@@ -14,12 +14,7 @@ type Vote struct {
 // Valid vote states are -1, 0, 1; vote states of 0
 // do not need to be stored as they represent no vote
 func (db *DB) InsertOrUpdateVote(vote *Vote) error {
-	if vote.State == 0 {
-		db.DeleteVote(vote)
-		return nil
-	}
-
-	if vote.State != -1 && vote.State != 1 {
+	if vote.State < -1 || vote.State > 1 {
 		return fmt.Errorf("invalid vote state")
 	}
 
@@ -30,10 +25,3 @@ func (db *DB) InsertOrUpdateVote(vote *Vote) error {
 	return nil
 }
 
-func (db *DB) DeleteVote(vote *Vote) {
-	if vote.User == "" && vote.PostID == "" { // Gorm deletes all records if primary key is blank
-		return
-	}
-	db.Delete(vote)
-	return
-}

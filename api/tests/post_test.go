@@ -33,13 +33,13 @@ func TestHealth(t *testing.T) {
 }
 
 func TestPostReplies(t *testing.T) {
-	createPostTree(t, 3, true)
+	createPostTree(t, 3, "")
 
 	idList1 := make([]string, len(ids))
 	copy(idList1, ids)
 	ids = make([]string, 0)
 
-	createPostTree(t, 5, true)
+	createPostTree(t, 5, "")
 
 	idList2 := make([]string, len(ids))
 	copy(idList2, ids)
@@ -108,9 +108,9 @@ func getSingleID(res *http.Response, req *http.Request) error {
 
 // createPostTree creates a post of trees to try and replicate a real
 // post thread. Height specifies how many posts to chain together, where 1 would result
-// in a single post with no replies. RandomChildren when enabled will produce a random
-// random number of children between 1 and 5 for each node as the tree is produced
-func createPostTree(t *testing.T, height int, randomChildren bool) {
+// in a single post with no replies. Reply should be an empty string to start the tree
+// or another postID to create a tree off of that post
+func createPostTree(t *testing.T, height int, reply string) {
 	if height == 0 {
 		return
 	}
@@ -118,9 +118,8 @@ func createPostTree(t *testing.T, height int, randomChildren bool) {
 	if err != nil {
 		t.Fatalf("Error authentication with api: %s", err.Error())
 	}
-	reply := ""
-	if len(ids) > 0 {
-		reply = "/" + ids[len(ids)-1] + "/post"
+	if reply != "" {
+		reply = "/" + reply + "/post"
 	}
 	post1 := server.Post{"Test content", "public", 0.0, 0.0}
 	assert.Nil(t, api.Post(base+"/post"+reply).
@@ -132,14 +131,12 @@ func createPostTree(t *testing.T, height int, randomChildren bool) {
 		AssertFunc(getSingleID).
 		Done())
 
-	children := 1
-	if randomChildren {
-		children = rand.Intn(6)
-	}
-	for i := 1; i <= children; i++ {
-		createPostTree(t, height-1, randomChildren)
-	}
+	newReply := ids[len(ids)-1]
+	children := rand.Intn(6)
 
+	for i := 1; i <= children; i++ {
+		createPostTree(t, height-1, newReply)
+	}
 }
 
 func auth() (string, error) {
