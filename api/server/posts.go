@@ -2,9 +2,10 @@ package server
 
 import (
 	"fmt"
-	"github.com/mcavoyk/quirk/api/location"
 	"net/http"
 	"strconv"
+
+	"github.com/mcavoyk/quirk/api/location"
 
 	"github.com/gin-gonic/gin"
 	"github.com/mcavoyk/quirk/api/models"
@@ -84,9 +85,17 @@ func (env *Env) PostPost(c *gin.Context) {
 	newPost.User = c.GetString(UserContext)
 	newPost.ParentID = parentID
 
-	postID := env.DB.InsertPost(newPost)
+	postID, err := env.DB.InsertPost(newPost)
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"Error": err.Error(),
+		})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"ID": postID,
+		"ID":       postID,
 		"ParentID": parentID,
 	})
 }

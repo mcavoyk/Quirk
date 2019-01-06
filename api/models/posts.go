@@ -1,6 +1,7 @@
 package models
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -28,11 +29,19 @@ type Post struct {
 	Lon         float64 `gorm:"index:longitude"`
 }
 
-func (db *DB) InsertPost(post *Post) string {
+func (db *DB) InsertPost(post *Post) (string, error) {
+	if post.ParentID != "" {
+		parent := db.GetPost(post.ParentID)
+		if parent.ID == "" {
+			return "", errors.New("invalid post parent")
+		}
+		post.Depth = parent.Depth + 1
+
+	}
 	post.ID = NewGUID()
 	post.CreatedAt = time.Now()
 	db.Create(post)
-	return post.ID
+	return post.ID, nil
 }
 
 func (db *DB) GetPost(id string) *Post {
@@ -97,13 +106,12 @@ func (db *DB) PostsByDistance(lat, lon float64, page, pageSize int) []Post {
 	return posts
 }
 
-
 func (db *DB) PostsByParent(parentID string) []Post {
 	posts := make([]Post, 0)
 
-	sql := fmt.Sprintf("WITH RECURSIVE cte (id, parent_id) as (" +
-		"SELECT id, parent_id FROM posts WHERE parent_id = '%s' UNION ALL " +
-		"SELECT p.id, p.parent_id FROM posts p INNER JOIN cte on p.parent_id = cte.id) " +
+	sql := fmt.Sprintf("WITH RECURSIVE cte (id, parent_id) as ("+
+		"SELECT id, parent_id FROM posts WHERE parent_id = '%s' UNION ALL "+
+		"SELECT p.id, p.parent_id FROM posts p INNER JOIN cte on p.parent_id = cte.id) "+
 		"SELECT * FROM cte", parentID)
 	fmt.Printf("%s\n", sql)
 

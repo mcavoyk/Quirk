@@ -25,3 +25,5 @@ services:
       - MYSQL_DATABASE=quirkdb
     networks:
       - private
+    ports:
+      - "3306:3306"
