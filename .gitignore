@@ -77,3 +77,4 @@ debug.test
 
 /scripts/build/release_publisher/release_publisher
 *.patch
+*.log

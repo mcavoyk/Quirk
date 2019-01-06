@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/mcavoyk/quirk/ip"
-	"github.com/mcavoyk/quirk/models"
+	"github.com/mcavoyk/quirk/api/ip"
+	"github.com/mcavoyk/quirk/api/models"
 )
 
 func (env *Env) UserVerify(c *gin.Context) {

@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
-	"github.com/mcavoyk/quirk/models"
+	"github.com/mcavoyk/quirk/api/models"
 )
 
 type Env struct {

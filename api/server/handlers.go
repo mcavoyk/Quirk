@@ -9,7 +9,10 @@ import (
 func (env *Env) HealthCheck(c *gin.Context) {
 	err := env.DB.DB.DB().Ping()
 	if err != nil {
-
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "unhealthy",
+		})
+		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "healthy"})
 }
