@@ -12,72 +12,73 @@ Actions:
 
 * [Create post](#create-post)
 
+* [Create post as reply](#create-post-as-reply)
+
 * [Delete post](#delete-post)
+
+* [Vote on a post](#vote-on-a-post)
 
 * [Search posts by location](#search-posts-by-location)
 
 * [Get post replies](#get-post-replies)
 
+
 ---
 
 ### Create post
-`POST /api/post` Creates a top level post
 
-`POST /api/post/:parentID/post` Creates post in reply to another post
+This action creates a top level post which will be viewable to other users
+based on their distance to where the post was created.
 
-Example Request:
+`POST /api/post` 
 
-```http
-POST /api/post/1FEWViwSeKkQ8hqaVkM2crOezbj/post HTTP/1.1
-Accept: application/json
-Content-Type: application/json
-Authorization:Bearer 1FEToRKxL7aNTgGtYR91WszCvA
+| **Attributes** | **Type** | **Required** | **Description** |
+| ---------- | ---- | -------- | ----------- |
+| `latitude` | number | yes |  The latitude in degrees of the user making the post |
+| `longitude` | number | yes |  The longitude in degrees of the user making the post|
+| `accessType` | string | yes | Visibility of post, `public` or `private` |
+| `content` | string | yes | The content of the post |
 
-{
-	"accessType": "public",
-	"latitude": 0.0,
-	"longitude": 0.0,
-	"content": 
-    	{ 
-    		"title": "New post who dis",
-    		"body": "ayy"
-    	}
-}
-```
 
-Example Response:
+### Create post as reply
 
-```http
-HTTP/1.1 200
-Content-Type: application/json
+This action creates a post which will be a reply to another post.
 
-{
-	"ID": "1FEj3nI39qajqfiVmxrpz9eexMQ"
-	"ParentID": "1FEWViwSeKkQ8hqaVkM2crOezbj"
-}
-```
+`POST /api/post/:id/post` 
+
+| **Attributes** | **Type** | **Required** | **Description** |
+| ---------- | ---- | -------- | ----------- |
+| `id` | string | yes | The ID of the post to reply |
+| `latitude` | number | yes |  The latitude in degrees of the user making the post |
+| `longitude` | number | yes |  The longitude in degrees of the user making the post|
+| `accessType` | string | yes | Visibility of post, `public` or `private` |
+| `content` | string | yes | The content of the post |
+
 
 ### Delete post
+
+This action requires being the same user who created the post.
+
 `DELETE /api/post/:id`
 
-Example Request:
+| **Attributes** | **Type** | **Required** | **Description** |
+| ---------- | ---- | -------- | ----------- |
+| `id` | string | yes | The ID of the post |
 
-```http
-DELETE /api/post/1FEj3nI39qajqfiVmxrpz9eexMQ HTTP/1.1
-Accept: application/json
-Authorization:Bearer 1FEToRKxL7aNTgGtYR91WszCvA
-```
 
-Example Response:
+### Vote on a post
 
-```http
-HTTP/1.1 200
-Content-Type: application/json
+Posts on Quirk support being upvoted, abstained, or downvoted, which 
+corresponds to a query string parameters `state` of 1, 0, or -1 respectively.
+The score of a post will reflect the aggregate votes of all users who
+have voted on the post.
 
-{
-	"OK"
-}
-```
+`POST /posts/:id/vote`
+
+| **Attributes** | **Type** | **Required** | **Description** |
+| ---------- | ---- | -------- | ----------- |
+| `state` | int | yes | An integer, 1, 0, or -1, representing the vote |
+
 
 ### Search posts by location
 
@@ -97,9 +98,9 @@ Search for posts by location.
 
 Get a list of posts in which are descendants of a given post.
 
-`GET /post/:post_id/posts`
+`GET /post/:id/posts`
 
 | **Attributes** | **Type** | **Required** | **Description** |
 | ---------- | ---- | -------- | ----------- |
-| `post_id` | string | yes | The ID of the post |
+| `id` | string | yes | The ID of the post |
 

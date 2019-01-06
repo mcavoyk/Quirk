@@ -109,13 +109,11 @@ func (db *DB) PostsByDistance(lat, lon float64, page, pageSize int) []Post {
 func (db *DB) PostsByParent(parentID string) []Post {
 	posts := make([]Post, 0)
 
-	sql := fmt.Sprintf("WITH RECURSIVE cte (id, parent_id) as ("+
-		"SELECT id, parent_id FROM posts WHERE parent_id = '%s' UNION ALL "+
-		"SELECT p.id, p.parent_id FROM posts p INNER JOIN cte on p.parent_id = cte.id) "+
-		"SELECT * FROM cte", parentID)
-	fmt.Printf("%s\n", sql)
 
-	rows, err := db.Raw(sql).Rows()
+	rows, err := db.Raw("WITH RECURSIVE cte as ("+
+		"SELECT * FROM posts WHERE parent_id = ? UNION ALL "+
+		"SELECT p.* FROM posts p INNER JOIN cte on p.parent_id = cte.id) "+
+		"SELECT * FROM cte", parentID).Rows()
 	if err != nil {
 		fmt.Printf("SQL Error: %s\n", err.Error())
 		return nil
@@ -128,7 +126,7 @@ func (db *DB) PostsByParent(parentID string) []Post {
 		}
 
 		newPost := Post{}
-		_ = db.ScanRows(rows, &newPost)
+		err = db.ScanRows(rows, &newPost)
 		posts = append(posts, newPost)
 	}
 	return posts

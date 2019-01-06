@@ -1,6 +1,7 @@
 module github.com/mcavoyk/quirk
 
 require (
+	github.com/Masterminds/squirrel v0.0.0-20181219164546-b56af2301db7 // indirect
 	github.com/gin-contrib/sse v0.0.0-20170109093832-22d885f9ecc7 // indirect
 	github.com/gin-gonic/gin v1.3.0
 	github.com/go-sql-driver/mysql v1.4.1 // indirect
