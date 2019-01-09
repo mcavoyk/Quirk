@@ -16,4 +16,3 @@ The following API resources are available:
 
 * [Authentication](docs/Authentication.md)
 * [Posts](docs/Post.md)
-* [Voting](docs/Vote.md)
