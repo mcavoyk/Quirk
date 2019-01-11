@@ -16,7 +16,7 @@ import (
 
 const (
 	url  = "http://localhost:5005"
-	base = "/api"
+	base = "/api/v1"
 )
 
 var (

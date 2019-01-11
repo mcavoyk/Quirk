@@ -6,7 +6,7 @@ import (
 
 func loadRoutes(router *gin.Engine, env *Env) {
 
-	api := router.Group("/api")
+	api := router.Group("/api/v1")
 	{
 		api.GET("/health", env.HealthCheck)
 

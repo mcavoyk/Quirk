@@ -12,6 +12,8 @@ This API is written in Golang.
 
 ---
 
+The base path of all api resources is `/api/v1`.
+
 The following API resources are available:
 
 * [Authentication](docs/Authentication.md)

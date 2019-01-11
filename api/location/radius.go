@@ -19,7 +19,9 @@ const (
 // BoundingPoints returns the bounding coordinates of all points on the surface
 // a sphere that have a great circle distance to the point represented
 // by this GeoLocation instance that is less or equal to the distance argument
-// Created based on http://janmatuschek.de/LatitudeLongitudeBoundingCoordinate
+// UNITS - Lat/lon is in radians
+// UNITS - Distance is in KILOMETERS
+// Created based on http://janmatuschek.de/LatitudeLongitudeBoundingCoordinates
 func BoundingPoints(point *Point, distance float64) []Point {
 	radDist := distance / EarthRadius
 	radLat := point.Lat
