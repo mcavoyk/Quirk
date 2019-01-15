@@ -13,12 +13,12 @@ class PostBar extends StatefulWidget  {
 class _PostBar extends State<PostBar> {
   int _vote = 0;
 
-  void _voteAction(int vote) {
+  void _voteAction(int newVote) {
     setState(() {
-      if (_vote == vote) {
-        _vote = _vote - vote;
+      if (_vote == newVote) {
+        _vote = _vote - newVote;
       } else {
-        _vote = vote;
+        _vote = newVote;
       }
     });
   }
@@ -28,20 +28,26 @@ class _PostBar extends State<PostBar> {
     return new Column(
       children: <Widget>[
         new Container(
+          alignment: Alignment.centerLeft,
+          child: new Text(
+            widget.post.user, 
+            style: TextStyle(fontSize: 12, color: Colors.black.withOpacity(0.5))
+          )
+        ),
+        new Container(
           height: 100,
           child: new Row(
             children: <Widget>[
               new Flexible(
-                fit: FlexFit.loose,
+                fit: FlexFit.tight,
                 flex: 5,
                 child: new Text(
                   widget.post.title,
                   overflow: TextOverflow.fade,
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500, fontFamily: 'Lato',)
-                  ),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500)
+                ),
               ),
               new Flexible(
-                fit: FlexFit.tight,
                 flex: 1,
                 child: new Column(
                   children: <Widget>[
@@ -54,8 +60,11 @@ class _PostBar extends State<PostBar> {
                      ),
                     ),
                     new Container(
-                      child: new Text(widget.post.score.toString(), style: TextStyle(fontFamily: 'Lato', fontSize: 18)),
-                      ),
+                      child: new Text(
+                        widget.post.score.toString(), 
+                        style: TextStyle(fontSize: 18),
+                      )
+                    ),
                     new Flexible(
                       child: new IconButton(
                         icon: Icon(Icons.keyboard_arrow_down, color: _vote == -1 ? Colors.amber : Colors.grey), 
@@ -64,14 +73,11 @@ class _PostBar extends State<PostBar> {
                         iconSize: 46,
                       ),
                     ),
-                  ]),
+                  ]
+                ),
               )
             ],
           )
-        ),
-        new Divider(
-          color: Colors.black,
-          indent: 0,
         )
       ],
     );

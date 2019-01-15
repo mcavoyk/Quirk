@@ -131,7 +131,9 @@ func (env *Env) SearchPosts(c *gin.Context) {
 	fmt.Printf("Received coords (%f, %f)\n", lat, lon)
 
 	posts := env.DB.PostsByDistance(lat, lon, int(page), int(pageSize))
-	c.JSON(http.StatusOK, posts)
+	c.JSON(http.StatusOK, gin.H{
+		"Posts": posts,
+	})
 }
 
 func (env *Env) GetPostsByPost(c *gin.Context) {

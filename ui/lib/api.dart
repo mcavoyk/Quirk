@@ -27,43 +27,51 @@ Future<String> auth() async{
 
 Future<Map<String, double>> checkOrGetLocationPerms() async{
   final perms = await SimplePermissions.checkPermission(Permission.AccessFineLocation);
-  if (perms == PermissionStatus.authorized){
+  if (perms == true){
       return Location().getLocation();
-  } else if (perms == PermissionStatus.deniedNeverAsk) {
-    return null;
   } else {
     await SimplePermissions.requestPermission(Permission.AccessFineLocation);
     return checkOrGetLocationPerms();
   }
 }
 
-Future<Post> getPosts() async{
+Future<List<Post>> getPosts() async{
   final location = await checkOrGetLocationPerms();
   if (location == null) {
-    throw Exception('Network error');
+    throw Exception('Location unavailable');
   }
-  final response = await http.get('$api/posts?lat=$location["latitude"]&lon=$location["longitude"]',
-    headers: {HttpHeaders.authorizationHeader: "Bearer "},
+  final double latitude = location['latitude'];
+  final double longitude = location['longitude'];
+  final String token = await auth();
+  final response = await http.get('$api/posts?lat=$latitude&lon=$longitude',
+    headers: {HttpHeaders.authorizationHeader: "Bearer $token"},
   );
   if (response.statusCode == 200) {
-    return Post.fromJson(json.decode(response.body));
+    List<dynamic> postsJson = json.decode(response.body)['Posts'];
+    List<Post> posts = new List();
+    postsJson.forEach((i) => posts.add(Post.fromJson(i)));
+    return posts;
   } else {
     throw Exception('Network error');
   }
 }
 
 class Post {
-  final int userId;
+  final String user;
   final String title;
   final int score;
+  final DateTime created;
+  final int numComments;
 
-  Post({this.userId, this.title, this.score});
+  Post({this.user, this.title, this.score, this.created, this.numComments});
 
   factory Post.fromJson(Map<String, dynamic> json) {
     return Post(
-      userId: json['User'],
-      title: json['Content']['Title'],
+      user: json['User'],
+      title: json['Content'],
       score: json['Score'],
+      created: DateTime.parse(json['CreatedAt']),
+      numComments: json['NumComments'],
     );
   }
 }

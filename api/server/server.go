@@ -12,7 +12,7 @@ import (
 type Env struct {
 	DB    *models.DB
 	Debug bool
-	log *log.Logger
+	log   *log.Logger
 }
 
 const UserContext = "user"
