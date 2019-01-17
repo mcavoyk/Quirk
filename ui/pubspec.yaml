@@ -13,6 +13,7 @@ dependencies:
   shared_preferences: ^0.4.3
   location: ^1.4.1
   simple_permissions: ^0.1.9
+  font_awesome_flutter: ^8.2.0
 
 dev_dependencies:
   flutter_test:

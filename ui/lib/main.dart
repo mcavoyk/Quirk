@@ -6,7 +6,12 @@ void main() {
     home: PostPage(), 
     theme: ThemeData(
       primarySwatch: Colors.amber,
+      primaryColor: Colors.amber,
+      accentColor: Colors.white,
       fontFamily: 'Lato',
+      accentIconTheme: IconThemeData(
+        color: Colors.white
+      )
     ),
   ));
 } 

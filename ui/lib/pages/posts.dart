@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../api.dart';
 import '../widgets/posts.dart';
 
@@ -41,7 +42,18 @@ class _PostPage extends State<PostPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Quirk')),
+      appBar: AppBar(
+        titleSpacing: 0.0,
+        title: Row(
+          children: <Widget>[
+            IconButton(
+              onPressed: () => (print("Menu")),
+              icon: Icon(Icons.menu)
+            ),
+            Text("Quirk"),
+          ]
+        )
+      ),
       body: RefreshIndicator(
         onRefresh: _refreshPosts,
         child: ListView.separated(
@@ -61,7 +73,12 @@ class _PostPage extends State<PostPage> {
               return PostBar(post: posts[index]);
             },
           )
-      )
+      ),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: Theme.of(context).primaryColor,
+        child: Icon(Icons.create),
+        onPressed: () => (print("Add")),
+      ),
     );
   }
 }
