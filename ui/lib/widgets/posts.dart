@@ -23,15 +23,37 @@ class _PostBar extends State<PostBar> {
     });
   }
 
+  String parseTime(DateTime time) {
+    Duration diff = DateTime.now().difference(time);
+    int days = diff.inDays;
+    if (days != 0) {
+      return days.toString() + 'd';
+    }
+    int hours = diff.inHours;
+    if (hours != 0) {
+      return hours.toString() + 'h';
+    }
+    int mins = diff.inMinutes;
+    if (mins != 0) {
+      return mins.toString() + 'm';
+    }
+    int secs = diff.inSeconds;
+    if (secs != 0) {
+      return secs.toString() + 's';
+    }
+    return '1s';
+  }
+
   @override
   Widget build(BuildContext context) {
     return new Column(
       children: <Widget>[
         new Container(
+          height: 1,
           alignment: Alignment.centerLeft,
           child: new Text(
             widget.post.user, 
-            style: TextStyle(fontSize: 12, color: Colors.black.withOpacity(0.5))
+            style: TextStyle(fontSize: 13, color: Colors.black.withOpacity(0.6))
           )
         ),
         new Container(
@@ -77,6 +99,26 @@ class _PostBar extends State<PostBar> {
                 ),
               )
             ],
+          )
+        ),
+        Container(
+          child: Row(
+            children: <Widget>[
+              Expanded(
+                flex: 2,
+                child: Text(
+                  parseTime(widget.post.created),
+                  style: TextStyle(fontSize: 13, color: Colors.black.withOpacity(0.6))
+                )
+              ),
+              Flexible(
+                flex: 3,
+                child: Text(
+                  widget.post.numComments.toString() + ' Replies',
+                  style: TextStyle(fontSize: 13, color: Colors.black.withOpacity(0.6))
+                )
+              )
+            ]
           )
         )
       ],

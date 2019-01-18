@@ -39,8 +39,29 @@ class _PostPage extends State<PostPage> {
     return new Future<void>(() {_fetchPosts();});
   }
 
+  Future<void> _newRefresh() {
+    return getPosts().then((_posts) {
+      setState(() {
+          posts = _posts;
+          message = "";
+          loading = false;   
+      });
+    }).catchError((e) {
+      setState(() {
+        posts = new List();
+        message = e.toString();
+        print(message);
+        loading = false;
+      });
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (message == "" && posts.length == 0) {
+      message = "No posts available";
+    }
+    
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 0.0,
@@ -55,11 +76,11 @@ class _PostPage extends State<PostPage> {
         )
       ),
       body: RefreshIndicator(
-        onRefresh: _refreshPosts,
+        onRefresh: _newRefresh,
         child: ListView.separated(
             physics: const AlwaysScrollableScrollPhysics(),
             itemCount: message != "" ? 1 : posts.length,
-            padding: EdgeInsets.only(left:8.0, right: 4.0, top: 4.0),
+            padding: EdgeInsets.only(left:6.0, top: 10.0, bottom: 64.0),
             separatorBuilder: (BuildContext context, int index) => Divider(color: Colors.black, indent: 0),
             itemBuilder: (BuildContext context, int index) {
               if (message != "") {

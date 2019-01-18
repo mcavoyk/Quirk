@@ -8,10 +8,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 
 final String api = 'http://192.168.0.32:5005/api/v1';
+final String savedToken = 'auth_token';
 
 Future<String> auth() async{
   SharedPreferences pref = await SharedPreferences.getInstance();
-  String token = pref.getString('auth_token');
+  String token = pref.getString(savedToken);
   if (token != null){
     return token;
   }
@@ -51,6 +52,10 @@ Future<List<Post>> getPosts() async{
     List<Post> posts = new List();
     postsJson.forEach((i) => posts.add(Post.fromJson(i)));
     return posts;
+  } else if (response.statusCode == 403) {
+      SharedPreferences pref = await SharedPreferences.getInstance();
+      pref.remove(savedToken);
+      return getPosts();
   } else {
     throw Exception('Network error');
   }
