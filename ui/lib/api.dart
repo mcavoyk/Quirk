@@ -7,7 +7,7 @@ import 'package:simple_permissions/simple_permissions.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 
-final String api = 'http://192.168.0.32:5005/api/v1';
+final String api = 'http://quirk.afforess.com/api/v1';
 final String savedToken = 'auth_token';
 
 Future<String> auth() async{

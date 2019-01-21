@@ -11,14 +11,23 @@ class PostBar extends StatefulWidget  {
 }
 
 class _PostBar extends State<PostBar> {
-  int _vote = 0;
+  int voteAction = 0;
+  int voteScore = 0;
+
+  @override
+  void initState() {
+      super.initState();
+      voteScore = widget.post.score;
+    }
 
   void _voteAction(int newVote) {
     setState(() {
-      if (_vote == newVote) {
-        _vote = _vote - newVote;
+      if (voteAction == newVote) {
+        voteAction = voteAction - newVote;
+        voteScore = widget.post.score;
       } else {
-        _vote = newVote;
+        voteAction = newVote;
+        voteScore += newVote;
       }
     });
   }
@@ -75,7 +84,7 @@ class _PostBar extends State<PostBar> {
                   children: <Widget>[
                     new Flexible(
                       child: new IconButton(
-                        icon: Icon(Icons.keyboard_arrow_up, color: _vote == 1 ? Colors.amber : Colors.grey), 
+                        icon: Icon(Icons.keyboard_arrow_up, color: voteAction == 1 ? Colors.amber : Colors.grey), 
                         onPressed: () => _voteAction(1),
                         padding: EdgeInsets.only(top: 0),
                         iconSize: 46,
@@ -83,13 +92,13 @@ class _PostBar extends State<PostBar> {
                     ),
                     new Container(
                       child: new Text(
-                        widget.post.score.toString(), 
+                        voteScore.toString(), 
                         style: TextStyle(fontSize: 18),
                       )
                     ),
                     new Flexible(
                       child: new IconButton(
-                        icon: Icon(Icons.keyboard_arrow_down, color: _vote == -1 ? Colors.amber : Colors.grey), 
+                        icon: Icon(Icons.keyboard_arrow_down, color: voteAction == -1 ? Colors.amber : Colors.grey), 
                         onPressed: () => _voteAction(-1),
                         padding: EdgeInsets.only(top: 0),
                         iconSize: 46,

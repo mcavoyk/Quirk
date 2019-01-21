@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+
 import '../api.dart';
 import '../widgets/posts.dart';
 
@@ -17,26 +18,7 @@ class _PostPage extends State<PostPage> {
   @override
   void initState() {
     super.initState();
-    _fetchPosts();
-  }
-
-  _fetchPosts() {
-    setState(() {
-      getPosts().then((newPosts) {
-        posts = newPosts;
-        message = "";
-      }).catchError((e) {
-        posts = new List();
-        message = e.toString();
-        print(message);
-        
-      });
-      loading = false;
-    });
-  }
-
-  Future<void> _refreshPosts() {
-    return new Future<void>(() {_fetchPosts();});
+    _newRefresh();
   }
 
   Future<void> _newRefresh() {
@@ -65,15 +47,7 @@ class _PostPage extends State<PostPage> {
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 0.0,
-        title: Row(
-          children: <Widget>[
-            IconButton(
-              onPressed: () => (print("Menu")),
-              icon: Icon(Icons.menu)
-            ),
-            Text("Quirk"),
-          ]
-        )
+        title: Text("Quirk"),
       ),
       body: RefreshIndicator(
         onRefresh: _newRefresh,
@@ -98,7 +72,32 @@ class _PostPage extends State<PostPage> {
       floatingActionButton: FloatingActionButton(
         backgroundColor: Theme.of(context).primaryColor,
         child: Icon(Icons.create),
-        onPressed: () => (print("Add")),
+        onPressed: () {
+            showModalBottomSheet<void>(context: context, builder: (BuildContext context) {
+              return Column(
+                children: <Widget>[
+                  Padding(
+                    padding: EdgeInsets.only(left: 10, right: 10, top: 4),
+                    child: TextFormField(
+                      autofocus: true,
+                      style: TextStyle(fontSize: 18),
+                      decoration: InputDecoration(
+                        icon: Icon(FontAwesomeIcons.comment, size: 32),
+                        border: UnderlineInputBorder(),
+                        hintText: "What's happening?"
+                      ),
+                    )
+                  )
+                ]
+              );
+            });
+          }
+      ),
+    drawer: Drawer(
+        child: ListView(       
+          children: <Widget>[
+          ],
+        )
       ),
     );
   }
