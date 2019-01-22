@@ -25,3 +25,6 @@ func (db *DB) InsertOrUpdateVote(vote *Vote) error {
 	return nil
 }
 
+func (db *DB) GetVotesByUser(user string) *Vote {
+	return nil
+}
