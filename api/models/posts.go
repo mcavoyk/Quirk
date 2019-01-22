@@ -20,8 +20,7 @@ type Post struct {
 	Content     string `sql:"type:JSON"`
 	Score       int    `gorm:"index:score"`
 	AccessType  string
-	Vote        []Vote `gorm:"ForeignKey:ID"`
-	VoteState   int    `gorm:"-"`
+	VoteState   int `gorm:"-"`
 	NumComments int
 	Collapsed   bool
 	ColReason   string
@@ -108,7 +107,6 @@ func (db *DB) PostsByDistance(lat, lon float64, page, pageSize int) []Post {
 
 func (db *DB) PostsByParent(parentID string) []Post {
 	posts := make([]Post, 0)
-
 
 	rows, err := db.Raw("WITH RECURSIVE cte as ("+
 		"SELECT * FROM posts WHERE parent_id = ? UNION ALL "+

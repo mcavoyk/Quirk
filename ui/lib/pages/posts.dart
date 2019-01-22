@@ -13,12 +13,32 @@ class _PostPage extends State<PostPage> {
   List<Post> posts = new List();
   bool loading = true;
   String message = "";
-
+  String createPostText = "";
+  final postController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _newRefresh();
+    postController.addListener(watchPostForm);
+  }
+
+  @override
+  void dispose() {
+    postController.dispose();
+    super.dispose();
+  }
+
+  void watchPostForm() {
+    setState(() {
+      createPostText = postController.text;
+    });
+  }
+
+  void submitPost() {
+    print("Submit post \"" + createPostText + "\"");
+    createPost(createPostText);
+    postController.clear();
   }
 
   Future<void> _newRefresh() {
@@ -38,16 +58,26 @@ class _PostPage extends State<PostPage> {
     });
   }
 
+  void voteAction(int index, newVote) {
+    if (posts[index].voteState == newVote) {
+      newVote = 0;
+    }
+    print("Vote " + newVote.toString() + " on " + index.toString());
+    setState(() {
+          posts[index].voteState = newVote;
+      });
+    vote(posts[index].id, newVote);
+  }
+
   @override
   Widget build(BuildContext context) {
     if (message == "" && posts.length == 0) {
       message = "No posts available";
     }
-    
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 0.0,
-        title: Text("Quirk"),
+        title: Text("Home"),
       ),
       body: RefreshIndicator(
         onRefresh: _newRefresh,
@@ -65,33 +95,45 @@ class _PostPage extends State<PostPage> {
                 );
               }
               //Post post = Post(user: 'Keunic', title: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.', score: 1);
-              return PostBar(post: posts[index]);
+              return PostBar(index, posts[index], voteAction);
             },
           )
       ),
       floatingActionButton: FloatingActionButton(
+        foregroundColor: Colors.black,
         backgroundColor: Theme.of(context).primaryColor,
         child: Icon(Icons.create),
-        onPressed: () {
-            showModalBottomSheet<void>(context: context, builder: (BuildContext context) {
-              return Column(
-                children: <Widget>[
-                  Padding(
-                    padding: EdgeInsets.only(left: 10, right: 10, top: 4),
-                    child: TextFormField(
-                      autofocus: true,
-                      style: TextStyle(fontSize: 18),
-                      decoration: InputDecoration(
-                        icon: Icon(FontAwesomeIcons.comment, size: 32),
-                        border: UnderlineInputBorder(),
-                        hintText: "What's happening?"
-                      ),
-                    )
-                  )
-                ]
-              );
-            });
-          }
+        onPressed: () => (
+        showModalBottomSheet(context: context, builder: (builder) {
+        return Column(
+          children: <Widget>[
+            AppBar(
+              backgroundColor: Theme.of(context).accentColor,
+              actions: <Widget>[
+                RaisedButton(
+                  shape: StadiumBorder(),
+                  color: Theme.of(context).primaryColor,
+                  onPressed: submitPost,
+                  child: Text("Quirk", style: TextStyle(fontSize: 20))
+                )
+              ]
+            ),
+            Padding(
+              padding: EdgeInsets.only(left: 10, right: 10, top: 4),
+              child: TextFormField(
+                autofocus: true,
+                controller: postController,
+                style: TextStyle(fontSize: 20, color: Colors.black),
+                decoration: InputDecoration(
+                  icon: Icon(FontAwesomeIcons.comment, size: 32),
+                  border: UnderlineInputBorder(),
+                  hintText: "What's happening?"
+                ),
+              )
+            )
+          ]
+        );
+      }))
       ),
     drawer: Drawer(
         child: ListView(       

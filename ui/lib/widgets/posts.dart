@@ -1,36 +1,16 @@
 import 'package:flutter/material.dart';
 import '../api.dart';
 
-class PostBar extends StatefulWidget  { 
-  PostBar({Key key, this.post}) : super(key: key);
+class PostBar extends StatelessWidget  { 
+  PostBar(
+    this.index,
+    this.post,
+    this.voteAction,
+  );
 
+  final int index;
   final Post post;
-
-  @override
-  _PostBar createState() => _PostBar();
-}
-
-class _PostBar extends State<PostBar> {
-  int voteAction = 0;
-  int voteScore = 0;
-
-  @override
-  void initState() {
-      super.initState();
-      voteScore = widget.post.score;
-    }
-
-  void _voteAction(int newVote) {
-    setState(() {
-      if (voteAction == newVote) {
-        voteAction = voteAction - newVote;
-        voteScore = widget.post.score;
-      } else {
-        voteAction = newVote;
-        voteScore += newVote;
-      }
-    });
-  }
+  final Function voteAction;
 
   String parseTime(DateTime time) {
     Duration diff = DateTime.now().difference(time);
@@ -61,7 +41,7 @@ class _PostBar extends State<PostBar> {
           height: 1,
           alignment: Alignment.centerLeft,
           child: new Text(
-            widget.post.user, 
+            post.user, 
             style: TextStyle(fontSize: 13, color: Colors.black.withOpacity(0.6))
           )
         ),
@@ -73,7 +53,7 @@ class _PostBar extends State<PostBar> {
                 fit: FlexFit.tight,
                 flex: 5,
                 child: new Text(
-                  widget.post.title,
+                  post.title,
                   overflow: TextOverflow.fade,
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500)
                 ),
@@ -84,22 +64,22 @@ class _PostBar extends State<PostBar> {
                   children: <Widget>[
                     new Flexible(
                       child: new IconButton(
-                        icon: Icon(Icons.keyboard_arrow_up, color: voteAction == 1 ? Colors.amber : Colors.grey), 
-                        onPressed: () => _voteAction(1),
+                        icon: Icon(Icons.keyboard_arrow_up, color: post.voteState == 1 ? Colors.amber : Colors.grey), 
+                        onPressed: () => voteAction(index, 1),
                         padding: EdgeInsets.only(top: 0),
                         iconSize: 46,
                      ),
                     ),
                     new Container(
                       child: new Text(
-                        voteScore.toString(), 
+                        (post.score + post.voteState).toString(), 
                         style: TextStyle(fontSize: 18),
                       )
                     ),
                     new Flexible(
                       child: new IconButton(
-                        icon: Icon(Icons.keyboard_arrow_down, color: voteAction == -1 ? Colors.amber : Colors.grey), 
-                        onPressed: () => _voteAction(-1),
+                        icon: Icon(Icons.keyboard_arrow_down, color: post.voteState == -1 ? Colors.amber : Colors.grey), 
+                        onPressed: () => voteAction(index, -1),
                         padding: EdgeInsets.only(top: 0),
                         iconSize: 46,
                       ),
@@ -116,14 +96,14 @@ class _PostBar extends State<PostBar> {
               Expanded(
                 flex: 2,
                 child: Text(
-                  parseTime(widget.post.created),
+                  parseTime(post.created),
                   style: TextStyle(fontSize: 13, color: Colors.black.withOpacity(0.6))
                 )
               ),
               Flexible(
                 flex: 3,
                 child: Text(
-                  widget.post.numComments.toString() + ' Replies',
+                  post.numComments.toString() + ' Replies',
                   style: TextStyle(fontSize: 13, color: Colors.black.withOpacity(0.6))
                 )
               )
