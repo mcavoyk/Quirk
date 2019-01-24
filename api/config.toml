@@ -1,6 +1,6 @@
 [server]
-port = 5005
-debug_mode = false
+port = ":5000"
+log_level = "debug"
 tls_disable = true
 tls_cert_file = "./dev-keys/tls.crt"
 tls_key_file = "./dev-keys/tls.key"

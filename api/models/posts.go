@@ -72,15 +72,12 @@ func (db *DB) PostsByDistance(lat, lon float64, page, pageSize int) []Post {
 	maxLat := points[1].Lat
 	maxLon := points[1].Lon
 
-	fmt.Printf("Using (%f, %f), calculated bounding points:\n (%f, %f) and (%f, %f)\n", lat, lon, minLat, minLon, maxLat, maxLon)
-
 	sql := fmt.Sprintf("SELECT * FROM posts WHERE "+
 		"(lat >= %f AND lat <= %f) AND (lon >= %f AND lon <= %f) "+
 		"AND ACOS(SIN(%f) * SIN(lat) + COS(%f) * COS(lat) * COS(lon - (%f))) <= %f",
 		minLat, maxLat, minLon, maxLon,
 		lat, lat, lon, distance/location.EarthRadius)
 
-	fmt.Printf("%s\n", sql)
 	rows, err := db.Raw(sql).Rows()
 	if err != nil {
 		fmt.Printf("SQL Error: %s\n", err.Error())

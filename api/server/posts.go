@@ -1,11 +1,9 @@
 package server
 
 import (
-	"fmt"
+	"github.com/mcavoyk/quirk/api/location"
 	"net/http"
 	"strconv"
-
-	"github.com/mcavoyk/quirk/api/location"
 
 	"github.com/gin-gonic/gin"
 	"github.com/mcavoyk/quirk/api/models"
@@ -128,9 +126,20 @@ func (env *Env) SearchPosts(c *gin.Context) {
 
 	lat = location.ToRadians(lat)
 	lon = location.ToRadians(lon)
-	fmt.Printf("Received coords (%f, %f)\n", lat, lon)
 
 	posts := env.DB.PostsByDistance(lat, lon, int(page), int(pageSize))
+	votes := env.DB.GetVotesByUser(c.GetString(UserContext))
+	env.Log.Debugf("Found %d votes submitted by user %s", len(votes), c.GetString(UserContext))
+
+	for i := 0; i < len(posts); i++ {
+		for j := 0; j < len(votes); j++ {
+			if posts[i].ID == votes[j].PostID {
+				posts[i].VoteState = votes[j].State
+				break
+			}
+		}
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"Posts": posts,
 	})

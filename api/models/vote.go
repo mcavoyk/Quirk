@@ -25,6 +25,24 @@ func (db *DB) InsertOrUpdateVote(vote *Vote) error {
 	return nil
 }
 
-func (db *DB) GetVotesByUser(user string) *Vote {
-	return nil
+func (db *DB) GetVotesByUser(user string) []Vote {
+	rows, err := db.Table("votes").Where("User = ?", user).Rows()
+	if err != nil {
+		fmt.Printf("SQL Error: %s\n", err.Error())
+		return nil
+	}
+
+	defer rows.Close()
+
+	votes := make([]Vote, 0)
+	for true {
+		if !rows.Next() {
+			break
+		}
+
+		newVote := Vote{}
+		_ = db.ScanRows(rows, &newVote)
+		votes = append(votes, newVote)
+	}
+	return votes
 }
