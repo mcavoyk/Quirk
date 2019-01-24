@@ -4,6 +4,7 @@ import (
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 	"github.com/segmentio/ksuid"
+	"time"
 )
 
 type DB struct {
@@ -15,6 +16,10 @@ func InitDB(connection string) (*DB, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	db.DB().SetMaxOpenConns(10)
+	db.DB().SetMaxIdleConns(5)
+	db.DB().SetConnMaxLifetime(time.Minute * 10)
 
 	db.AutoMigrate(&Post{}, &Vote{}, &User{})
 

@@ -65,6 +65,7 @@ class _PostPage extends State<PostPage> {
     print("Vote " + newVote.toString() + " on " + index.toString());
     setState(() {
           posts[index].voteState = newVote;
+          posts[index].score += newVote;
       });
     vote(posts[index].id, newVote);
   }

@@ -14,7 +14,7 @@ class Post {
   final String id;
   final String user;
   final String title;
-  final int score;
+  int score;
   int voteState;
   final DateTime created;
   final int numComments;
