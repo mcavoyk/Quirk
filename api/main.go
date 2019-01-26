@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -19,7 +17,9 @@ import (
 const DefaultConfig = "config.toml"
 
 func main() {
-	logrus.SetOutput(os.Stdout)
+	log := logrus.New()
+	log.SetOutput(os.Stdout)
+
 	configPath := os.Getenv("CONFIG")
 	if configPath == "" {
 		configPath = DefaultConfig
@@ -29,17 +29,25 @@ func main() {
 		log.Fatalf("Unable to read configuration: %s", err.Error())
 	}
 
+	levelStr := config.GetString("server.log_level")
+	logLevel, err := logrus.ParseLevel(levelStr)
+	if err != nil {
+		logrus.Warnf("Unable to parse configuration log_level: %s", levelStr)
+		logLevel = logrus.DebugLevel
+	}
+	log.SetLevel(logLevel)
+
 	db, err := configuration.InitDB(config)
 	if err != nil {
 		logrus.Fatalf("Unable to connect to database: %s", err.Error())
 	}
 	defer db.Close()
 
-	url := fmt.Sprintf("%s:%d", config.GetString("server.address"), config.GetInt("server.port"))
-	log.Printf("Starting server on [%s]", url)
-	handler := server.NewRouter(&server.Env{DB: db, Debug: config.GetBool("server.debug_mode")})
+	port := config.GetString("server.port")
+	log.Infof("Starting server on port %s", port)
+	handler := server.NewRouter(&server.Env{DB: db, Log: log})
 	srv := &http.Server{
-		Addr:         url,
+		Addr:         port,
 		Handler:      handler,
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 10 * time.Second,

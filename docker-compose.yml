@@ -4,6 +4,9 @@ networks:
     private:
       driver: bridge
 
+volumes:
+  dbdata: {}
+
 services:
   api:
     image: quirk-api:latest
@@ -27,3 +30,6 @@ services:
       - private
     ports:
       - "3306:3306"
+    volumes:
+      - dbdata:/var/lib/mysql
+

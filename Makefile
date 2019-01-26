@@ -1,5 +1,8 @@
 build-api: clean
-	CGO_ENABLED=0 GOOS=linux go build -installsuffix cgo -o bin/main ./api
+	GOOS=linux go build -o bin/main ./api
+
+build-api-windows: clean
+	GOOS=windows go build -o bin/main.exe ./api
 
 docker: build-api
 	docker build -t quirk-api .

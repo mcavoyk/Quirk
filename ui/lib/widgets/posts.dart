@@ -72,7 +72,7 @@ class PostBar extends StatelessWidget  {
                     ),
                     new Container(
                       child: new Text(
-                        (post.score + post.voteState).toString(), 
+                        post.score.toString(),
                         style: TextStyle(fontSize: 18),
                       )
                     ),

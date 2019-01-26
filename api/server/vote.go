@@ -26,7 +26,6 @@ func (env *Env) PostVote(c *gin.Context) {
 		User:   user,
 		State:  state,
 	}
-	env.log.Printf("Received vote: %+v\n", newVote)
 	if err := env.DB.InsertOrUpdateVote(newVote); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"Error": err.Error(),

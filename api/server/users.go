@@ -21,6 +21,14 @@ func (env *Env) UserVerify(c *gin.Context) {
 		c.AbortWithStatus(http.StatusForbidden)
 		return
 	}
+
+	// Extract and use coords if they are included and valid
+	coords, err := extractCoords(c)
+	if err == nil {
+		existingUser.Lat = coords.Lat
+		existingUser.Lon = coords.Lon
+	}
+
 	existingUser.UsedAt = time.Now()
 	env.DB.UserUpdate(existingUser)
 	c.Set(UserContext, existingUser.ID)
@@ -28,7 +36,16 @@ func (env *Env) UserVerify(c *gin.Context) {
 }
 
 func (env *Env) CreateUser(c *gin.Context) {
-	userID := env.DB.UserInsert(&models.User{IP: ip.Parse(c.Request)})
+	coords, err := extractCoords(c)
+
+	if err != nil  {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"Error": err.Error(),
+		})
+		return
+	}
+
+	userID := env.DB.UserInsert(&models.User{IP: ip.Parse(c.Request), Lat: coords.Lat, Lon: coords.Lon})
 	c.JSON(http.StatusOK, gin.H{
 		"token": userID,
 	})

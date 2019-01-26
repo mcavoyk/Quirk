@@ -1,13 +1,12 @@
 package server
 
 import (
-	"fmt"
+	"math"
 	"net/http"
 	"strconv"
 
-	"github.com/mcavoyk/quirk/api/location"
-
 	"github.com/gin-gonic/gin"
+	"github.com/mcavoyk/quirk/api/location"
 	"github.com/mcavoyk/quirk/api/models"
 )
 
@@ -102,20 +101,16 @@ func (env *Env) PostPost(c *gin.Context) {
 
 // PostsGet wraps search functions for posts
 func (env *Env) SearchPosts(c *gin.Context) {
-	latStr := c.Query("lat")
-	lonStr := c.Query("lon")
-	pageStr := c.DefaultQuery("page", "1")
-	pageSizeStr := c.DefaultQuery("pagesize", "25")
+	coords, err := extractCoords(c)
 
-	lat, latErr := strconv.ParseFloat(latStr, 64)
-	lon, lonErr := strconv.ParseFloat(lonStr, 64)
-
-	if latErr != nil || lonErr != nil {
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"Error": "Invalid latitude and longitude format",
+			"Error": err.Error(),
 		})
 	}
 
+	pageStr := c.DefaultQuery("page", "1")
+	pageSizeStr := c.DefaultQuery("pagesize", "25")
 	page, pageErr := strconv.Atoi(pageStr)
 	pageSize, pageSizeErr := strconv.Atoi(pageSizeStr)
 
@@ -126,11 +121,23 @@ func (env *Env) SearchPosts(c *gin.Context) {
 		return
 	}
 
-	lat = location.ToRadians(lat)
-	lon = location.ToRadians(lon)
-	fmt.Printf("Received coords (%f, %f)\n", lat, lon)
+	posts := env.DB.PostsByDistance(coords.Lat, coords.Lon, int(page), int(pageSize))
+	votes := env.DB.GetVotesByUser(c.GetString(UserContext))
+	env.Log.Debugf("Found %d votes submitted by user %s", len(votes), c.GetString(UserContext))
 
-	posts := env.DB.PostsByDistance(lat, lon, int(page), int(pageSize))
+	userCount := float64(env.DB.UsersByDistance(coords.Lat, coords.Lon))
+	env.Log.Debugf("Found %f users in the radius of posts", userCount)
+
+	for i := 0; i < len(posts); i++ {
+		posts[i].Score = math.Round(posts[i].Score * math.Pow(math.Max(userCount, 1), 0.7))
+		for j := 0; j < len(votes); j++ {
+			if posts[i].ID == votes[j].PostID {
+				posts[i].VoteState = votes[j].State
+				break
+			}
+		}
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"Posts": posts,
 	})

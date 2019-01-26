@@ -8,6 +8,8 @@ import (
 	"github.com/mcavoyk/quirk/api/location"
 )
 
+const Distance = 8.04672 // KM (5 Miles)
+
 // Post represents top level content, viewable based on a user's location
 // and the Posts Lat/Long
 type Post struct {
@@ -16,9 +18,11 @@ type Post struct {
 	UpdatedAt   time.Time
 	User        string `gorm:"index:user"`
 	ParentID    string
-	Depth       int    `gorm:"index:depth"`
-	Content     string `sql:"type:JSON"`
-	Score       int    `gorm:"index:score"`
+	Depth       int     `gorm:"index:depth"`
+	Content     string  `sql:"type:JSON"`
+	Score       float64 `gorm:"-"`
+	Positive    int     `gorm:"index:positive" json:"-" `
+	Negative    int     `gorm:"index:negative" json:"-"`
 	AccessType  string
 	VoteState   int `gorm:"-"`
 	NumComments int
@@ -40,6 +44,9 @@ func (db *DB) InsertPost(post *Post) (string, error) {
 	post.ID = NewGUID()
 	post.CreatedAt = time.Now()
 	db.Create(post)
+
+	// Ignore error because this is a valid vote state
+	_ = db.InsertOrUpdateVote(&Vote{User: post.User, PostID: post.ID, State: Upvote})
 	return post.ID, nil
 }
 
@@ -65,23 +72,18 @@ func (db *DB) DeletePost(id string) {
 
 func (db *DB) PostsByDistance(lat, lon float64, page, pageSize int) []Post {
 	posts := make([]Post, 0)
-	distance := 5.0 // KM
-	points := location.BoundingPoints(&location.Point{lat, lon}, distance)
+
+	points := location.BoundingPoints(&location.Point{lat, lon}, Distance)
 	minLat := points[0].Lat
 	minLon := points[0].Lon
 	maxLat := points[1].Lat
 	maxLon := points[1].Lon
 
-	fmt.Printf("Using (%f, %f), calculated bounding points:\n (%f, %f) and (%f, %f)\n", lat, lon, minLat, minLon, maxLat, maxLon)
-
-	sql := fmt.Sprintf("SELECT * FROM posts WHERE "+
-		"(lat >= %f AND lat <= %f) AND (lon >= %f AND lon <= %f) "+
-		"AND ACOS(SIN(%f) * SIN(lat) + COS(%f) * COS(lat) * COS(lon - (%f))) <= %f",
+	rows, err := db.Raw("SELECT *, "+wilsonOrder+" FROM posts WHERE "+
+		byDistance+" ORDER BY score DESC",
 		minLat, maxLat, minLon, maxLon,
-		lat, lat, lon, distance/location.EarthRadius)
+		lat, lat, lon, Distance/location.EarthRadius).Rows()
 
-	fmt.Printf("%s\n", sql)
-	rows, err := db.Raw(sql).Rows()
 	if err != nil {
 		fmt.Printf("SQL Error: %s\n", err.Error())
 		return nil
@@ -130,3 +132,8 @@ func (db *DB) PostsByParent(parentID string) []Post {
 	return posts
 
 }
+
+const wilsonOrder = "((positive + 1.9208) / (positive + negative) - 1.96 * SQRT((positive * negative) / (positive + negative)" +
+	" + 0.9604) /(positive + negative)) / (1 + 3.8416 / (positive + negative)) AS score"
+
+var byDistance = "(lat >= ? AND lat <= ?) AND (lon >= ? AND lon <= ?) AND ACOS(SIN(?) * SIN(lat) + COS(?) * COS(lat) * COS(lon - (?))) <= ?"
