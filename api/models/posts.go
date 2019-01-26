@@ -40,6 +40,9 @@ func (db *DB) InsertPost(post *Post) (string, error) {
 	post.ID = NewGUID()
 	post.CreatedAt = time.Now()
 	db.Create(post)
+
+	// Ignore error because this is a valid vote state
+	_ = db.InsertOrUpdateVote(&Vote{User: post.User, PostID: post.ID, State: Upvote})
 	return post.ID, nil
 }
 
@@ -72,13 +75,12 @@ func (db *DB) PostsByDistance(lat, lon float64, page, pageSize int) []Post {
 	maxLat := points[1].Lat
 	maxLon := points[1].Lon
 
-	sql := fmt.Sprintf("SELECT * FROM posts WHERE "+
-		"(lat >= %f AND lat <= %f) AND (lon >= %f AND lon <= %f) "+
-		"AND ACOS(SIN(%f) * SIN(lat) + COS(%f) * COS(lat) * COS(lon - (%f))) <= %f",
+	rows, err := db.Raw("SELECT * FROM posts WHERE "+
+		"(lat >= ? AND lat <= ?) AND (lon >= ? AND lon <= ?) "+
+		"AND ACOS(SIN(?) * SIN(lat) + COS(?) * COS(lat) * COS(lon - (?))) <= ?",
 		minLat, maxLat, minLon, maxLon,
-		lat, lat, lon, distance/location.EarthRadius)
+		lat, lat, lon, distance/location.EarthRadius).Rows()
 
-	rows, err := db.Raw(sql).Rows()
 	if err != nil {
 		fmt.Printf("SQL Error: %s\n", err.Error())
 		return nil
