@@ -45,7 +45,7 @@ func TestPostReplies(t *testing.T) {
 	copy(idList2, ids)
 	ids = make([]string, 0)
 
-	token, err := auth()
+	token, err := auth(0, 0)
 	if err != nil {
 		t.Fatalf("Error authentication with api: %s", err.Error())
 	}
@@ -114,7 +114,7 @@ func createPostTree(t *testing.T, height int, reply string) {
 	if height == 0 {
 		return
 	}
-	token, err := auth()
+	token, err := auth(0, 0)
 	if err != nil {
 		t.Fatalf("Error authentication with api: %s", err.Error())
 	}
@@ -139,8 +139,8 @@ func createPostTree(t *testing.T, height int, reply string) {
 	}
 }
 
-func auth() (string, error) {
-	resp, err := http.Get(url + base + "/auth/token")
+func auth(lat, lon float64) (string, error) {
+	resp, err := http.Get(url + base + fmt.Sprintf("/auth/token?lat=%f&lon=%f", lat, lon))
 	if err != nil {
 		return "", err
 	}

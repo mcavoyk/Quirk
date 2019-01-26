@@ -32,7 +32,7 @@ func TestPostLocation(t *testing.T) {
 }
 
 func createPost(t *testing.T, lat, lon float64) {
-	token, err := auth()
+	token, err := auth(lat, lon)
 	if err != nil {
 		t.Fatalf("Error authentication with api: %s", err.Error())
 	}
