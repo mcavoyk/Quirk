@@ -22,6 +22,8 @@ func InitDB(connection string) (*DB, error) {
 	db.DB().SetMaxIdleConns(5)
 	db.DB().SetConnMaxLifetime(time.Minute * 10)
 
+	db.Exec("ALTER DATABASE quirkdb CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci;")
+
 	db.AutoMigrate(&Post{}, &Vote{}, &User{})
 
 	db.Exec("CREATE TRIGGER score_insert " +

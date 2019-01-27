@@ -12,27 +12,6 @@ class PostBar extends StatelessWidget  {
   final Post post;
   final Function voteAction;
 
-  String parseTime(DateTime time) {
-    Duration diff = DateTime.now().difference(time);
-    int days = diff.inDays;
-    if (days != 0) {
-      return days.toString() + 'd';
-    }
-    int hours = diff.inHours;
-    if (hours != 0) {
-      return hours.toString() + 'h';
-    }
-    int mins = diff.inMinutes;
-    if (mins != 0) {
-      return mins.toString() + 'm';
-    }
-    int secs = diff.inSeconds;
-    if (secs != 0) {
-      return secs.toString() + 's';
-    }
-    return '1s';
-  }
-
   @override
   Widget build(BuildContext context) {
     return new Column(
@@ -96,7 +75,7 @@ class PostBar extends StatelessWidget  {
               Expanded(
                 flex: 2,
                 child: Text(
-                  parseTime(post.created),
+                  post.createdStr,
                   style: TextStyle(fontSize: 13, color: Colors.black.withOpacity(0.6))
                 )
               ),
