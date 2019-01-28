@@ -32,6 +32,6 @@ func InitDB(config *viper.Viper) (*models.DB, error) {
 
 	log.Printf("Attempting to connect to database [%s]\n", dbConnection)
 
-	db, err := models.InitDB(dbConnection + "?charset=utf8&parseTime=True")
+	db, err := models.InitDB(dbConnection + "?parseTime=True&charset=utf8mb4&collation=utf8mb4_unicode_ci")
 	return db, err
 }

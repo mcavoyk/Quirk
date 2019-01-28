@@ -125,11 +125,12 @@ func (env *Env) SearchPosts(c *gin.Context) {
 	votes := env.DB.GetVotesByUser(c.GetString(UserContext))
 	env.Log.Debugf("Found %d votes submitted by user %s", len(votes), c.GetString(UserContext))
 
-	userCount := float64(env.DB.UsersByDistance(coords.Lat, coords.Lon))
-	env.Log.Debugf("Found %f users in the radius of posts", userCount)
+	//userCount := env.DB.UsersByDistance(coords.Lat, coords.Lon)
+	//env.Log.Debugf("Found %d users in the radius of posts", userCount)
+
 
 	for i := 0; i < len(posts); i++ {
-		posts[i].Score = math.Round(posts[i].Score * math.Pow(math.Max(userCount, 1), 0.7))
+		posts[i].Score = float64(posts[i].Positive - posts[i].Negative)
 		for j := 0; j < len(votes); j++ {
 			if posts[i].ID == votes[j].PostID {
 				posts[i].VoteState = votes[j].State
@@ -148,4 +149,19 @@ func (env *Env) GetPostsByPost(c *gin.Context) {
 	posts := env.DB.PostsByParent(id)
 	c.JSON(http.StatusOK, posts)
 	return
+}
+
+// absoluteScore takes x - the wilson score of a post and the amount
+// of users in the area and tries to create an absolute score
+// using this to test a bit https://play.golang.org/p/iWDg0P9vXIP
+func absoluteScore(x, totalVotes, users float64) float64 {
+	//userScalar := math.Log(math.Max(float64(users), 1))
+	startingWilsonScore := 0.206543
+
+	// negative score
+	shiftedScore := x - startingWilsonScore
+	if (shiftedScore) < 0 {
+		return math.Round(shiftedScore * totalVotes)
+	}
+	return math.Round(x * totalVotes)
 }

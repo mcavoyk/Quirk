@@ -36,13 +36,15 @@ class _PostPage extends State<PostPage> {
   }
 
   void submitPost() {
-    print("Submit post \"" + createPostText + "\"");
-    createPost(createPostText);
-    postController.clear();
+    Api.createPost(createPostText).then((_) {
+      postController.clear();
+      Navigator.pop(context);
+      _newRefresh();
+    });
   }
 
   Future<void> _newRefresh() {
-    return getPosts().then((_posts) {
+    return Api.getPosts().then((_posts) {
       setState(() {
           posts = _posts;
           message = "";
@@ -50,9 +52,9 @@ class _PostPage extends State<PostPage> {
       });
     }).catchError((e) {
       setState(() {
+        print(e.toString());
         posts = new List();
-        message = e.toString();
-        print(message);
+        message = "Network error";
         loading = false;
       });
     });
@@ -62,12 +64,11 @@ class _PostPage extends State<PostPage> {
     if (posts[index].voteState == newVote) {
       newVote = 0;
     }
-    print("Vote " + newVote.toString() + " on " + index.toString());
     setState(() {
+          posts[index].score += newVote - posts[index].voteState;
           posts[index].voteState = newVote;
-          posts[index].score += newVote;
       });
-    vote(posts[index].id, newVote);
+    Api.vote(posts[index].id, newVote);
   }
 
   @override
@@ -81,6 +82,7 @@ class _PostPage extends State<PostPage> {
         title: Text("Home"),
       ),
       body: RefreshIndicator(
+        backgroundColor: Theme.of(context).primaryColor,
         onRefresh: _newRefresh,
         child: ListView.separated(
             physics: const AlwaysScrollableScrollPhysics(),
