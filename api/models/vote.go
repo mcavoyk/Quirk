@@ -1,13 +1,9 @@
 package models
 
-import (
-	"fmt"
-)
-
 // Vote represents a user's vote on a post
 type Vote struct {
-	User   string `gorm:"primary_key"`
-	PostID string `gorm:"primary_key" binding:"required"`
+	User   string `db:"user_id"`
+	PostID string `binding:"required"`
 	State  int    `binding:"required"`
 }
 
@@ -17,19 +13,17 @@ const (
 	Downvote = -1
 )
 
-// Valid vote states are -1, 0, 1; vote states of 0
-// do not need to be stored as they represent no vote
+// InsertOrUpdateVote Valid vote states are -1, 0, 1
 func (db *DB) InsertOrUpdateVote(vote *Vote) error {
-	if vote.State < Downvote || vote.State > Upvote {
-		return fmt.Errorf("invalid vote state")
-	}
-
-	db.Exec("INSERT INTO votes (user, post_id, state) VALUES (?, ?, ?) "+
-		"ON DUPLICATE KEY UPDATE state=VALUES(state)", vote.User, vote.PostID, vote.State)
-	return nil
+	_, err := db.NamedExec("INSERT INTO votes (user_id, post_id, state) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE state=VALUES(state)", vote)
+	return err
 }
 
+
 func (db *DB) GetVotesByUser(user string) []Vote {
+	votes := make([]Vote, 0)
+	return votes
+	/*
 	rows, err := db.Table("votes").Where("User = ?", user).Rows()
 	if err != nil {
 		fmt.Printf("SQL Error: %s\n", err.Error())
@@ -38,7 +32,7 @@ func (db *DB) GetVotesByUser(user string) []Vote {
 
 	defer rows.Close()
 
-	votes := make([]Vote, 0)
+
 	for true {
 		if !rows.Next() {
 			break
@@ -49,4 +43,6 @@ func (db *DB) GetVotesByUser(user string) []Vote {
 		votes = append(votes, newVote)
 	}
 	return votes
+	*/
 }
+

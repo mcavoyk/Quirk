@@ -9,24 +9,23 @@ import (
 
 type User struct {
 	ID        string
-	CreatedAt time.Time `gorm:"index:createdAt"`
-	UsedAt    time.Time `gorm:"index:usedAt"`
+	Name      string
+	CreatedAt time.Time
+	UsedAt    time.Time
 	IP        string
-	Lat       float64 `gorm:"index:latitude"`
-	Lon       float64 `gorm:"index:longitude"`
+	Lat       float64
+	Lon       float64
 }
 
 func (db *DB) UserInsert(user *User) string {
 	user.ID = NewGUID()
-	user.CreatedAt = time.Now()
-	user.UsedAt = user.CreatedAt
-	db.Create(user)
+	_, _ = db.Exec("INSERT INTO users (id, name, ip, lat, lon) VALUES(?, ?, ?, ?)", user.ID, user.Name, user.IP, user.Lat, user.Lon)
 	return user.ID
 }
 
 func (db *DB) UserGet(id string) *User {
 	user := new(User)
-	db.Where("ID = ?", id).First(user)
+	_ = db.QueryRow("")
 	return user
 }
 
@@ -34,7 +33,6 @@ func (db *DB) UserUpdate(user *User) {
 	if user.ID == "" {
 		return
 	}
-	db.Model(user).Updates(user)
 	return
 }
 
@@ -45,9 +43,9 @@ func (db *DB) UsersByDistance(lat, lon float64) int {
 	maxLat := points[1].Lat
 	maxLon := points[1].Lon
 
-	row := db.Raw("SELECT COUNT(*) FROM users WHERE "+byDistance,
+	row := db.QueryRowx("SELECT COUNT(*) FROM users WHERE "+byDistance,
 		minLat, maxLat, minLon, maxLon,
-		lat, lat, lon, Distance/location.EarthRadius).Row()
+		lat, lat, lon, Distance/location.EarthRadius)
 
 	var count int
 	err := row.Scan(&count)

@@ -9,7 +9,7 @@ func loadRoutes(router *gin.Engine, env *Env) {
 	api := router.Group("/api/v1")
 	{
 		api.GET("/health", env.HealthCheck)
-
+		/*
 		api.GET("/auth/token", env.CreateUser)
 		api.GET("/auth/token/:token", env.ValidateUser)
 		api.Use(env.UserVerify)
@@ -25,5 +25,6 @@ func loadRoutes(router *gin.Engine, env *Env) {
 		api.POST("/post/:id/vote", env.PostVote)
 
 		api.GET("/posts", env.SearchPosts)
+		*/
 	}
 }

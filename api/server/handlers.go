@@ -1,9 +1,11 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/mcavoyk/quirk/api/location"
 
@@ -11,7 +13,9 @@ import (
 )
 
 func (env *Env) HealthCheck(c *gin.Context) {
-	err := env.DB.DB.DB().Ping()
+	ctx, cancel:= context.WithTimeout(context.Background(), time.Second)
+	err := env.DB.PingContext(ctx)
+	cancel()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": "unhealthy",

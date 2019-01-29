@@ -43,7 +43,7 @@ func (db *DB) InsertPost(post *Post) (string, error) {
 	}
 	post.ID = NewGUID()
 	post.CreatedAt = time.Now()
-	db.Create(post)
+	//db.Create(post)
 
 	// Ignore error because this is a valid vote state
 	_ = db.InsertOrUpdateVote(&Vote{User: post.User, PostID: post.ID, State: Upvote})
@@ -52,13 +52,13 @@ func (db *DB) InsertPost(post *Post) (string, error) {
 
 func (db *DB) GetPost(id string) *Post {
 	post := new(Post)
-	db.Where("ID = ?", id).First(post)
+	//db.Where("ID = ?", id).First(post)
 	return post
 }
 
 func (db *DB) UpdatePost(post *Post) {
 	post.ID = "" // Prevent user from updating primary key
-	db.Model(post).Updates(post)
+	//db.Model(post).Updates(post)
 	return
 }
 
@@ -66,7 +66,7 @@ func (db *DB) DeletePost(id string) {
 	if id == "" { // Gorm deletes all records if primary key is blank
 		return
 	}
-	db.Delete(&Post{ID: id})
+	//db.Delete(&Post{ID: id})
 	return
 }
 
@@ -79,10 +79,10 @@ func (db *DB) PostsByDistance(lat, lon float64, page, pageSize int) []Post {
 	maxLat := points[1].Lat
 	maxLon := points[1].Lon
 
-	rows, err := db.Raw("SELECT *, "+wilsonOrder+" FROM posts WHERE "+
+	rows, err := db.Queryx("SELECT *, "+wilsonOrder+" FROM posts WHERE "+
 		byDistance+" ORDER BY score DESC",
 		minLat, maxLat, minLon, maxLon,
-		lat, lat, lon, Distance/location.EarthRadius).Rows()
+		lat, lat, lon, Distance/location.EarthRadius)
 
 	if err != nil {
 		fmt.Printf("SQL Error: %s\n", err.Error())
@@ -100,7 +100,7 @@ func (db *DB) PostsByDistance(lat, lon float64, page, pageSize int) []Post {
 		}
 
 		newPost := Post{}
-		_ = db.ScanRows(rows, &newPost)
+		_ = rows.Scan(&newPost)
 		posts = append(posts, newPost)
 		index++
 	}
@@ -110,10 +110,10 @@ func (db *DB) PostsByDistance(lat, lon float64, page, pageSize int) []Post {
 func (db *DB) PostsByParent(parentID string) []Post {
 	posts := make([]Post, 0)
 
-	rows, err := db.Raw("WITH RECURSIVE cte as ("+
+	rows, err := db.Queryx("WITH RECURSIVE cte as ("+
 		"SELECT * FROM posts WHERE parent_id = ? UNION ALL "+
 		"SELECT p.* FROM posts p INNER JOIN cte on p.parent_id = cte.id) "+
-		"SELECT * FROM cte", parentID).Rows()
+		"SELECT * FROM cte", parentID)
 	if err != nil {
 		fmt.Printf("SQL Error: %s\n", err.Error())
 		return nil
@@ -126,7 +126,7 @@ func (db *DB) PostsByParent(parentID string) []Post {
 		}
 
 		newPost := Post{}
-		err = db.ScanRows(rows, &newPost)
+		err = rows.Scan(&newPost)
 		posts = append(posts, newPost)
 	}
 	return posts

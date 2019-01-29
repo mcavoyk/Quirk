@@ -25,13 +25,12 @@ func InitConfig(path string) (*viper.Viper, error) {
 }
 
 func InitDB(config *viper.Viper) (*models.DB, error) {
-	dbConnection := fmt.Sprintf("%s:%s@tcp(%s)/quirkdb",
+	dbConnection := fmt.Sprintf("%s:%s@tcp(%s)/",
 		config.GetString("database.username"),
 		config.GetString("database.password"),
 		config.GetString("database.address"))
 
 	log.Printf("Attempting to connect to database [%s]\n", dbConnection)
 
-	db, err := models.InitDB(dbConnection + "?parseTime=True&charset=utf8mb4&collation=utf8mb4_unicode_ci")
-	return db, err
+	return models.InitDB(dbConnection)
 }

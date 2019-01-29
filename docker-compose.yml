@@ -25,7 +25,6 @@ services:
     command: mysqld --default-authentication-plugin=mysql_native_password
     environment:
       - MYSQL_ROOT_PASSWORD=root
-      - MYSQL_DATABASE=quirkdb
     networks:
       - private
     ports:

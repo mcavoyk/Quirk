@@ -39,7 +39,7 @@ func main() {
 
 	db, err := configuration.InitDB(config)
 	if err != nil {
-		logrus.Fatalf("Unable to connect to database: %s", err.Error())
+		logrus.Fatalf("Unable to setup database: %s", err.Error())
 	}
 	defer db.Close()
 
