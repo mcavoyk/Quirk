@@ -11,15 +11,18 @@ type User struct {
 	ID        string
 	Name      string
 	CreatedAt time.Time
-	UsedAt    time.Time
+	UpdatedAt time.Time
 	IP        string
 	Lat       float64
 	Lon       float64
 }
 
+const insertUser = "INSERT INTO users (id, name, ip, lat, lon) VALUES (?, ?, ?, ?, ?)"
+
 func (db *DB) UserInsert(user *User) string {
 	user.ID = NewGUID()
-	_, _ = db.Exec("INSERT INTO users (id, name, ip, lat, lon) VALUES(?, ?, ?, ?)", user.ID, user.Name, user.IP, user.Lat, user.Lon)
+	_, err := db.NamedExec(insertUser, user)
+	db.log.Errorf("User insert failed: %s", err.Error())
 	return user.ID
 }
 
