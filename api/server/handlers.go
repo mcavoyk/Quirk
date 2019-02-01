@@ -22,7 +22,7 @@ func (env *Env) HealthCheck(c *gin.Context) {
 		})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "healthy"})
+	c.JSON(http.StatusOK, gin.H{"status": "healthy"})
 }
 
 func noRoute(c *gin.Context) {

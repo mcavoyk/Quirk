@@ -2,33 +2,37 @@ package models
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/mcavoyk/quirk/api/location"
 )
 
 type User struct {
-	ID        string
-	Name      string
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	IP        string
-	Lat       float64
-	Lon       float64
+	Default
+	Name     string  `json:"name"`
+	Password string  `json:"-"`
+	Email    string  `json:"email"`
+	IP       string  `json:"ip_address"`
+	Lat      float64 `json:"lat"`
+	Lon      float64 `json:"lon"`
 }
 
-const insertUser = "INSERT INTO users (id, name, ip, lat, lon) VALUES (?, ?, ?, ?, ?)"
+const insertUser = "INSERT INTO users (id, name, ip_address, lat, lon) VALUES (:id, :name, :ip_address, :lat, :lon)"
 
-func (db *DB) UserInsert(user *User) string {
+func (db *DB) InsertUser(user *User) *User {
 	user.ID = NewGUID()
 	_, err := db.NamedExec(insertUser, user)
-	db.log.Errorf("User insert failed: %s", err.Error())
-	return user.ID
+	if err != nil {
+		db.log.Errorf("Insert user failed: %s", err.Error())
+	}
+	return db.GetUser(user.ID)
 }
 
-func (db *DB) UserGet(id string) *User {
+func (db *DB) GetUser(id string) *User {
 	user := new(User)
-	_ = db.QueryRow("")
+	err := db.Get(user, "SELECT * FROM users WHERE id=?", id)
+	if err != nil {
+		db.log.Errorf("Get user failed: %s", err.Error())
+	}
 	return user
 }
 

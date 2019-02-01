@@ -18,7 +18,7 @@ const DefaultConfig = "config.toml"
 
 func main() {
 	log := logrus.New()
-	log.SetOutput(os.Stdout)
+	//log.SetOutput(os.Stdout)
 
 	configPath := os.Getenv("CONFIG")
 	if configPath == "" {

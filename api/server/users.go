@@ -3,12 +3,20 @@ package server
 import (
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/mcavoyk/quirk/api/ip"
+	"github.com/mcavoyk/quirk/api/gfyid"
+	"github.com/mcavoyk/quirk/api/location"
 	"github.com/mcavoyk/quirk/api/models"
 )
+
+type User struct {
+	Name     string  `json:"name" form:"name"`
+	Password string  `json:"-" form:"password"`
+	Email    string  `json:"email" form:"email"`
+	Lat      float64 `json:"lat" form:"lat" binding:"required"`
+	Lon      float64 `json:"lon" form:"lon" binding:"required"`
+}
 
 func (env *Env) UserVerify(c *gin.Context) {
 	userID := extractToken(c)
@@ -16,7 +24,7 @@ func (env *Env) UserVerify(c *gin.Context) {
 		c.AbortWithStatus(http.StatusForbidden)
 		return
 	}
-	existingUser := env.DB.UserGet(userID)
+	existingUser := env.DB.GetUser(userID)
 	if existingUser.ID != userID {
 		c.AbortWithStatus(http.StatusForbidden)
 		return
@@ -29,26 +37,31 @@ func (env *Env) UserVerify(c *gin.Context) {
 		existingUser.Lon = coords.Lon
 	}
 
-	existingUser.UsedAt = time.Now()
 	env.DB.UserUpdate(existingUser)
 	c.Set(UserContext, existingUser.ID)
 	c.Next()
 }
 
 func (env *Env) CreateUser(c *gin.Context) {
-	coords, err := extractCoords(c)
-
-	if err != nil  {
+	newUser := new(User)
+	if err := c.ShouldBind(newUser); err != nil {
+		env.Log.Debugf("Failed to bind to user struct: %s", err.Error())
 		c.JSON(http.StatusBadRequest, gin.H{
-			"Error": err.Error(),
+			"status": "Missing or invalid latitude and longitude",
 		})
 		return
 	}
 
-	userID := env.DB.UserInsert(&models.User{IP: ip.Parse(c.Request), Lat: coords.Lat, Lon: coords.Lon})
-	c.JSON(http.StatusOK, gin.H{
-		"token": userID,
-	})
+	if newUser.Name == "" {
+		newUser.Name = gfyid.RandomID()
+	}
+
+	user := env.DB.InsertUser(&models.User{
+		Name: newUser.Name,
+		IP:   c.ClientIP(),
+		Lat:  location.ToRadians(newUser.Lat),
+		Lon:  location.ToRadians(newUser.Lon)})
+	c.JSON(http.StatusCreated, user)
 }
 
 func (env *Env) ValidateUser(c *gin.Context) {
@@ -57,7 +70,7 @@ func (env *Env) ValidateUser(c *gin.Context) {
 		c.AbortWithStatus(http.StatusForbidden)
 		return
 	}
-	existingUser := env.DB.UserGet(userID)
+	existingUser := env.DB.GetUser(userID)
 	if existingUser.ID != userID {
 		c.AbortWithStatus(http.StatusForbidden)
 		return

@@ -1,9 +1,14 @@
 package models
 
 import (
+	"database/sql/driver"
+	"strings"
+	"time"
+
+	"github.com/jmoiron/sqlx/reflectx"
+
 	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
-	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/segmentio/ksuid"
@@ -14,16 +19,20 @@ type DB struct {
 	log *logrus.Logger
 }
 
+type Default struct {
+	ID        string    `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	DeletedAt NullTime  `json:"deleted_at"`
+}
+
 // InitDB panics if unable to establish connection with DB
 func InitDB(connection string) (*DB, error) {
-	db, err := sqlx.Connect("mysql", connection + "?parseTime=True&charset=utf8mb4&collation=utf8mb4_unicode_ci")
+	connectionParams := "?parseTime=True&charset=utf8mb4&collation=utf8mb4_unicode_ci"
+	db, err := sqlx.Connect("mysql", connection+connectionParams)
 	if err != nil {
 		return nil, err
 	}
-
-	db.SetMaxOpenConns(10)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(time.Minute * 10)
 
 	for _, stmt := range schema {
 		_, err = db.Exec(stmt)
@@ -31,6 +40,16 @@ func InitDB(connection string) (*DB, error) {
 			return nil, err
 		}
 	}
+
+	db, err = sqlx.Connect("mysql", connection+dbName+connectionParams)
+	if err != nil {
+		return nil, err
+	}
+	db.SetMaxOpenConns(10)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(time.Minute * 10)
+	db.Mapper = reflectx.NewMapperFunc("json", strings.ToLower)
+
 	return &DB{DB: db, log: logrus.New()}, nil
 }
 
@@ -44,89 +63,136 @@ func (db *DB) SetLogLevel(logLevel string) {
 	}
 }
 
+const dbName = "quirk"
 
 // Database schema
 var schema = []string{
-	`CREATE DATABASE IF NOT EXISTS quirk CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci;`,
+	`CREATE DATABASE IF NOT EXISTS ` + dbName + ` CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci;`,
 
 	`USE quirk;`,
 	`CREATE TABLE IF NOT EXISTS metadata (
   		name VARCHAR(255),
 		version VARCHAR(255),
-  		updatedAt TIMESTAMP NOT NULL DEFAULT NOW() ON UPDATE NOW(),
+  		updated_at TIMESTAMP NOT NULL DEFAULT NOW() ON UPDATE NOW(),
   		PRIMARY KEY (name)
 	);`,
 
 	`CREATE TABLE IF NOT EXISTS users (
  		id VARCHAR(255) PRIMARY KEY NOT NULL,
-  		createdAt TIMESTAMP NOT NULL DEFAULT NOW(),
-		updatedAt TIMESTAMP NOT NULL DEFAULT NOW() ON UPDATE NOW(),
-  		deletedAt TIMESTAMP NULL,
+  		created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+		updated_at TIMESTAMP NOT NULL DEFAULT NOW() ON UPDATE NOW(),
+  		deleted_at TIMESTAMP NULL,
   		name VARCHAR(255) NOT NULL,
-  		ip VARCHAR(255),
+		password VARCHAR(255) NOT NULL,
+		email VARCHAR(255) NOT NULL,
+  		ip_address VARCHAR(255) NOT NULL DEFAULT '',
   		lat DOUBLE NOT NULL,
   		lon DOUBLE NOT NULL,
 
  		INDEX idxLatLon (lat, lon),
 		INDEX idxName (name),
-		INDEX idxCreated (createdAt),
-		INDEX idxUpdated (updatedAt),
-		INDEX idxDeleted (deletedAt)
+		INDEX idxEmail (email),
+		INDEX idxCreated (created_at),
+		INDEX idxUpdated (updated_at),
+		INDEX idxDeleted (deleted_at)
+	);`,
+
+	`CREATE TABLE IF NOT EXISTS sessions (
+ 		id VARCHAR(255) PRIMARY KEY NOT NULL,
+		user_id VARCHAR(255) NOT NULL,
+  		created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+		deleted_at TIMESTAMP NOT NULL,
+
+		INDEX idxCreated (created_at),
+		INDEX idxDeleted (deleted_at),
+
+		FOREIGN KEY fk_user_sessions (user_id)
+			REFERENCES users(id)
+			ON DELETE CASCADE
 	);`,
 
 	`CREATE TABLE IF NOT EXISTS posts (
   		id VARCHAR(255) PRIMARY KEY NOT NULL,
-		createdAt TIMESTAMP NOT NULL DEFAULT NOW(),
-		updatedAt TIMESTAMP NOT NULL DEFAULT NOW() ON UPDATE NOW(),
-		deletedAt TIMESTAMP NULL,
+		created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+		updated_at TIMESTAMP NOT NULL DEFAULT NOW() ON UPDATE NOW(),
+  		deleted_at TIMESTAMP NULL,
 		lat DOUBLE NOT NULL,
 		lon DOUBLE NOT NULL,
-		userID VARCHAR(255) NOT NULL,
-		parentID VARCHAR(1023) NOT NULL DEFAULT '',
-		accessType ENUM('public', 'private') NOT NULL DEFAULT 'public',
+		user_id VARCHAR(255) NOT NULL,
+		parent_id VARCHAR(1023) NOT NULL DEFAULT '',
+		access_type ENUM('public', 'private') NOT NULL DEFAULT 'public',
 		content TEXT NOT NULL,
 
+		INDEX idx_parent (parent_id),
 		INDEX idxLatLon (lat, lon),
-		INDEX idxCreated (createdAt),
-		INDEX idxDeleted (deletedAt),
+		INDEX idxCreated (created_at),
+		INDEX idxDeleted (updated_at),
 
-		FOREIGN KEY fk_users (userID)
+		FOREIGN KEY fk_user_posts (user_id)
 			REFERENCES users(id)
 			ON DELETE CASCADE
 	);`,
 
 	`CREATE TABLE IF NOT EXISTS votes (
-  		postID VARCHAR(255) NOT NULL,
-  		userID VARCHAR(255) NOT NULL,
+  		post_id VARCHAR(255) NOT NULL,
+  		user_id VARCHAR(255) NOT NULL,
   		vote TINYINT NOT NULL,
-  		updatedAt TIMESTAMP NOT NULL DEFAULT NOW() ON UPDATE NOW(),
-  		PRIMARY KEY (postID, userID),
+  		updated_at TIMESTAMP NOT NULL DEFAULT NOW() ON UPDATE NOW(),
+  		PRIMARY KEY (post_id, user_id),
 
-  		INDEX idxPost (postID),
-  		INDEX idxUser (userID),
+  		INDEX idxPost (post_id),
+  		INDEX idxUser (user_id),
 		INDEX idxVote (vote),
 
-  		FOREIGN KEY fkUser (userID)
+  		FOREIGN KEY fkUser (user_id)
     		REFERENCES users(id)
     		ON DELETE CASCADE,
 
-  		FOREIGN KEY fkPost (postID)
+  		FOREIGN KEY fkPost (post_id)
   		  REFERENCES posts(id)
     		ON DELETE CASCADE
 	);`,
 
-	`CREATE VIEW IF NOT EXISTS voteView AS
-		SELECT postID,
+	`CREATE VIEW IF NOT EXISTS user_view AS
+		SELECT u.id, u.name, u.email, u.password, u.lat, u.lon, u.created_at, u.updated_at, u.deleted_at, s.id AS session_id,
+		s.created_at AS session_created, s.deleted_at AS expiry
+	FROM users u
+	JOIN sessions s ON u.id = s.user_id`,
+
+	`CREATE VIEW IF NOT EXISTS vote_view AS
+		SELECT post_id,
 		SUM(CASE WHEN vote = 1 THEN 1 ELSE 0 END) as positive,
 		SUM(CASE WHEN vote = -1 THEN 1 ELSE 0 END) as negative
 	FROM votes
-	GROUP BY postID`,
+	GROUP BY post_id`,
 
-	`CREATE VIEW IF NOT EXISTS postView AS
-		SELECT p.id, p.createdAt, p.updatedAt, p.lat, p.lon, p.userID, p.accessType, p.parentID, 
+	`CREATE VIEW IF NOT EXISTS post_view AS
+		SELECT p.id, p.created_at, p.updated_at, p.lat, p.lon, p.user_id, p.access_type, p.parent_id, 
 		p.content, u.name, v.positive, v.negative
 	FROM posts p 
-	JOIN users u ON p.userID = u.id
-	JOIN voteView v ON v.postID = p.id`,
+	JOIN users u ON p.user_id = u.id
+	JOIN vote_view v ON v.post_id = p.id`,
 }
 
+// NullTime represents a time.Time that may be null. NullTime implements the
+// sql.Scanner interface so it can be used as a scan destination, similar to
+// sql.NullString.
+type NullTime struct {
+	time.Time
+	Null bool // Valid is true if Time is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (nt *NullTime) Scan(value interface{}) error {
+	nt.Time, nt.Null = value.(time.Time)
+	nt.Null = !nt.Null
+	return nil
+}
+
+// Value implements the driver Valuer interface.
+func (nt NullTime) Value() (driver.Value, error) {
+	if nt.Null {
+		return nil, nil
+	}
+	return nt.Time, nil
+}
