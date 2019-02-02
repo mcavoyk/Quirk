@@ -23,7 +23,7 @@ type Default struct {
 	ID        string    `json:"id"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
-	DeletedAt NullTime  `json:"deleted_at"`
+	DeletedAt *NullTime `json:"deleted_at,omitempty"`
 }
 
 // InitDB panics if unable to establish connection with DB
@@ -82,29 +82,32 @@ var schema = []string{
   		created_at TIMESTAMP NOT NULL DEFAULT NOW(),
 		updated_at TIMESTAMP NOT NULL DEFAULT NOW() ON UPDATE NOW(),
   		deleted_at TIMESTAMP NULL,
-  		name VARCHAR(255) NOT NULL,
+  		username VARCHAR(255) UNIQUE NOT NULL,
+		display_name VARCHAR(255) NOT NULL,
 		password VARCHAR(255) NOT NULL,
-		email VARCHAR(255) NOT NULL,
-  		ip_address VARCHAR(255) NOT NULL DEFAULT '',
-  		lat DOUBLE NOT NULL,
-  		lon DOUBLE NOT NULL,
-
- 		INDEX idxLatLon (lat, lon),
-		INDEX idxName (name),
-		INDEX idxEmail (email),
-		INDEX idxCreated (created_at),
-		INDEX idxUpdated (updated_at),
-		INDEX idxDeleted (deleted_at)
+		email VARCHAR(255) NOT NULL DEFAULT '',
+ 
+		INDEX idx_username (username),
+		INDEX idx_email (email),
+		INDEX idx_created (created_at),
+		INDEX idx_updated (updated_at),
+		INDEX idx_deleted (deleted_at)
 	);`,
 
 	`CREATE TABLE IF NOT EXISTS sessions (
  		id VARCHAR(255) PRIMARY KEY NOT NULL,
 		user_id VARCHAR(255) NOT NULL,
   		created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-		deleted_at TIMESTAMP NOT NULL,
+		updated_at TIMESTAMP NOT NULL DEFAULT NOW() ON UPDATE NOW(),
+		expiry TIMESTAMP NOT NULL,
+		ip_address VARCHAR(255) NOT NULL DEFAULT '',
+		lat DOUBLE NOT NULL,
+  		lon DOUBLE NOT NULL,
 
-		INDEX idxCreated (created_at),
-		INDEX idxDeleted (deleted_at),
+		INDEX idx_latlon (lat, lon),
+		INDEX idx_created (created_at),
+		INDEX idx_updated (updated_at),
+		INDEX idx_expiry (expiry),
 
 		FOREIGN KEY fk_user_sessions (user_id)
 			REFERENCES users(id)
@@ -124,9 +127,9 @@ var schema = []string{
 		content TEXT NOT NULL,
 
 		INDEX idx_parent (parent_id),
-		INDEX idxLatLon (lat, lon),
-		INDEX idxCreated (created_at),
-		INDEX idxDeleted (updated_at),
+		INDEX idx_latlon (lat, lon),
+		INDEX idx_created (created_at),
+		INDEX idx_deleted (updated_at),
 
 		FOREIGN KEY fk_user_posts (user_id)
 			REFERENCES users(id)
@@ -140,22 +143,21 @@ var schema = []string{
   		updated_at TIMESTAMP NOT NULL DEFAULT NOW() ON UPDATE NOW(),
   		PRIMARY KEY (post_id, user_id),
 
-  		INDEX idxPost (post_id),
-  		INDEX idxUser (user_id),
-		INDEX idxVote (vote),
+  		INDEX idx_post (post_id),
+  		INDEX idx_user (user_id),
+		INDEX idx_vote (vote),
 
-  		FOREIGN KEY fkUser (user_id)
+  		FOREIGN KEY fk_user_votes (user_id)
     		REFERENCES users(id)
     		ON DELETE CASCADE,
 
-  		FOREIGN KEY fkPost (post_id)
+  		FOREIGN KEY fk_post_votes (post_id)
   		  REFERENCES posts(id)
     		ON DELETE CASCADE
 	);`,
 
 	`CREATE VIEW IF NOT EXISTS user_view AS
-		SELECT u.id, u.name, u.email, u.password, u.lat, u.lon, u.created_at, u.updated_at, u.deleted_at, s.id AS session_id,
-		s.created_at AS session_created, s.deleted_at AS expiry
+		SELECT u.id, u.username, u.email, u.password, u.deleted_at, s.id AS session_id, s.created_at AS session_created, s.expiry, s.lat, s.lon, s.ip_address
 	FROM users u
 	JOIN sessions s ON u.id = s.user_id`,
 
@@ -168,7 +170,7 @@ var schema = []string{
 
 	`CREATE VIEW IF NOT EXISTS post_view AS
 		SELECT p.id, p.created_at, p.updated_at, p.lat, p.lon, p.user_id, p.access_type, p.parent_id, 
-		p.content, u.name, v.positive, v.negative
+		p.content, u.username, u.display_name, v.positive, v.negative
 	FROM posts p 
 	JOIN users u ON p.user_id = u.id
 	JOIN vote_view v ON v.post_id = p.id`,

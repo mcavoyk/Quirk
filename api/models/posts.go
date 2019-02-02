@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/mcavoyk/quirk/api/location"
+	"github.com/mcavoyk/quirk/api/pkg/location"
 )
 
 const Distance = 8.04672 // KM (5 Miles)

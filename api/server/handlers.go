@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/mcavoyk/quirk/api/location"
+	"github.com/mcavoyk/quirk/api/pkg/location"
 
 	"github.com/gin-gonic/gin"
 )
@@ -27,7 +27,7 @@ func (env *Env) HealthCheck(c *gin.Context) {
 
 func noRoute(c *gin.Context) {
 	c.JSON(http.StatusNotFound, gin.H{
-		"message": "Page not found",
+		"status": "Page not found",
 	})
 }
 
@@ -40,5 +40,5 @@ func extractCoords(c *gin.Context) (*location.Point, error) {
 	if latErr != nil || lonErr != nil {
 		return nil, fmt.Errorf("Invalid or missing latitude and longitude")
 	}
-	return &location.Point{Lat: location.ToRadians(lat), Lon: location.ToRadians(lon)}, nil
+	return &location.Point{Lat: lat, Lon: lon}, nil
 }

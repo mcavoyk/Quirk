@@ -2,45 +2,102 @@ package models
 
 import (
 	"fmt"
+	"time"
 
-	"github.com/mcavoyk/quirk/api/location"
+	"github.com/mcavoyk/quirk/api/pkg/location"
 )
 
 type User struct {
 	Default
-	Name     string  `json:"name"`
-	Password string  `json:"-"`
-	Email    string  `json:"email"`
-	IP       string  `json:"ip_address"`
-	Lat      float64 `json:"lat"`
-	Lon      float64 `json:"lon"`
+	Username    string `json:"username"`
+	DisplayName string `json:"display_name"`
+	Password    string `json:"password,omitempty"`
+	Email       string `json:"email"`
 }
 
-const insertUser = "INSERT INTO users (id, name, ip_address, lat, lon) VALUES (:id, :name, :ip_address, :lat, :lon)"
+type Session struct {
+	ID        string    `json:"id"`
+	UserID    string    `json:"user_id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Expiry    time.Time `json:"expiry"`
+	IP        string    `json:"ip_address"`
+	Lat       float64   `json:"lat"`
+	Lon       float64   `json:"lon"`
+}
 
-func (db *DB) InsertUser(user *User) *User {
+const insertUser = "INSERT INTO users (id, username, display_name, password, email) VALUES (:id, :username, :display_name, :password, :email)"
+const insertSession = "INSERT INTO sessions (id, user_id, expiry, ip_address, lat, lon) VALUES (:id, :user_id, :expiry, :ip_address, :lat, :lon)"
+
+func (db *DB) InsertUser(user *User) (*User, error) {
 	user.ID = NewGUID()
 	_, err := db.NamedExec(insertUser, user)
 	if err != nil {
 		db.log.Errorf("Insert user failed: %s", err.Error())
+		return nil, err
 	}
 	return db.GetUser(user.ID)
 }
 
-func (db *DB) GetUser(id string) *User {
+func (db *DB) GetUser(id string) (*User, error) {
 	user := new(User)
 	err := db.Get(user, "SELECT * FROM users WHERE id=?", id)
 	if err != nil {
 		db.log.Errorf("Get user failed: %s", err.Error())
+		return nil, err
 	}
-	return user
+	return user, nil
 }
 
-func (db *DB) UserUpdate(user *User) {
-	if user.ID == "" {
-		return
+func (db *DB) GetUserByName(username string) (*User, error) {
+	user := new(User)
+	err := db.Get(user, "SELECT * FROM users WHERE username=?", username)
+	if err != nil {
+		db.log.Errorf("Get user failed: %s", err.Error())
+		return nil, err
 	}
-	return
+
+	return user, nil
+}
+
+func (db *DB) InsertSession(session *Session) (*Session, error) {
+	session.ID = NewGUID()
+	session.Lat, session.Lon = location.ToRadians(session.Lat), location.ToRadians(session.Lon)
+	_, err := db.NamedExec(insertSession, session)
+	if err != nil {
+		db.log.Errorf("Insert session failed: %s", err.Error())
+		return nil, err
+	}
+	return db.GetSession(session.ID)
+}
+
+func (db *DB) GetSession(id string) (*Session, error) {
+	session := new(Session)
+	err := db.Get(session, "SELECT * FROM sessions WHERE id=?", id)
+	if err != nil {
+		db.log.Errorf("Get session failed: %s", err.Error())
+		return nil, err
+	}
+	return session, nil
+}
+
+func (db *DB) GetUserBySession(sessionID string) (*User, error) {
+	user := new(User)
+	err := db.Unsafe().Get(user, "SELECT * FROM user_view WHERE session_id=?", sessionID)
+	if err != nil {
+		db.log.Errorf("Get user by session failed: %s", err.Error())
+		return nil, err
+	}
+
+	return user, nil
+}
+
+func (db *DB) SessionUpdate(session *Session) {
+	session.Lat, session.Lon = location.ToRadians(session.Lat), location.ToRadians(session.Lon)
+	_, err := db.NamedExec("UPDATE sessions SET ip_address = :ip_address, lat = :lat, lon = :lon WHERE id = :id", session)
+	if err != nil {
+		db.log.Errorf("Update session failed: %s", err.Error())
+	}
 }
 
 func (db *DB) UsersByDistance(lat, lon float64) int {

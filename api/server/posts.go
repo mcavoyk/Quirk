@@ -6,7 +6,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/mcavoyk/quirk/api/location"
+	"github.com/mcavoyk/quirk/api/pkg/location"
 	"github.com/mcavoyk/quirk/api/models"
 )
 

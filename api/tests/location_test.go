@@ -3,8 +3,8 @@ package tests
 import (
 	"testing"
 
-	"github.com/mcavoyk/quirk/api/gfyid"
-	"github.com/mcavoyk/quirk/api/location"
+	"github.com/mcavoyk/quirk/api/pkg/gfyid"
+	"github.com/mcavoyk/quirk/api/pkg/location"
 	"github.com/mcavoyk/quirk/api/server"
 	"github.com/stretchr/testify/assert"
 )

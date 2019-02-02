@@ -11,12 +11,12 @@ func loadRoutes(router *gin.Engine, env *Env) {
 		api.GET("/health", env.HealthCheck)
 
 		api.POST("/user", env.CreateUser)
-		/*
-		api.GET("/auth/token", env.CreateUser)
-		api.GET("/auth/token/:token", env.ValidateUser)
+		api.POST("/user/login", env.LoginUser)
 		api.Use(env.UserVerify)
 		router.NoRoute(noRoute)
+		api.GET("/user/:id", env.GetUser)
 
+		/*
 		api.POST("/post", env.PostPost)
 		api.GET("/post/:id", env.GetPost)
 		api.PATCH("/post/:id", env.PatchPost)
