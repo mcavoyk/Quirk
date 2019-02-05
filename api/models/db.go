@@ -2,6 +2,7 @@ package models
 
 import (
 	"database/sql/driver"
+	"fmt"
 	"strings"
 	"time"
 
@@ -26,7 +27,7 @@ type Default struct {
 	DeletedAt *NullTime `json:"deleted_at,omitempty"`
 }
 
-// InitDB panics if unable to establish connection with DB
+// InitDB
 func InitDB(connection string) (*DB, error) {
 	connectionParams := "?parseTime=True&charset=utf8mb4&collation=utf8mb4_unicode_ci"
 	db, err := sqlx.Connect("mysql", connection+connectionParams)
@@ -61,6 +62,57 @@ func (db *DB) SetLogLevel(logLevel string) {
 	if level, err := logrus.ParseLevel(logLevel); err == nil {
 		db.log.SetLevel(level)
 	}
+}
+
+func InsertValues(insert string) string {
+	start := strings.Split(insert, "(")
+	if len(start) == 1 {
+		return insert
+	}
+	start[1] = strings.Join(start[1:], "(")
+
+	end := strings.Split(start[1], ")")
+	endStmt := ""
+	if len(end) > 1 {
+		endStmt = strings.Join(end[1:], ")")
+	}
+
+	columns := end[0]
+	columnSplit := strings.Split(columns, ",")
+	namedValues := ""
+	for i, column := range columnSplit {
+		column = strings.TrimSpace(column)
+		if i != 0 {
+			namedValues += ", "
+		}
+		namedValues += fmt.Sprintf(":%s", column)
+	}
+
+	return fmt.Sprintf("%s(%s) VALUES (%s)%s", start[0], end[0], namedValues, endStmt)
+
+}
+
+// NullTime represents a time.Time that may be null. NullTime implements the
+// sql.Scanner interface so it can be used as a scan destination, similar to
+// sql.NullString.
+type NullTime struct {
+	time.Time
+	Null bool // Valid is true if Time is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (nt *NullTime) Scan(value interface{}) error {
+	nt.Time, nt.Null = value.(time.Time)
+	nt.Null = !nt.Null
+	return nil
+}
+
+// Value implements the driver Valuer interface.
+func (nt NullTime) Value() (driver.Value, error) {
+	if nt.Null {
+		return nil, nil
+	}
+	return nt.Time, nil
 }
 
 const dbName = "quirk"
@@ -101,6 +153,7 @@ var schema = []string{
 		updated_at TIMESTAMP NOT NULL DEFAULT NOW() ON UPDATE NOW(),
 		expiry TIMESTAMP NOT NULL,
 		ip_address VARCHAR(255) NOT NULL DEFAULT '',
+		user_agent VARCHAR(255) NOT NULL DEFAULT '',
 		lat DOUBLE NOT NULL,
   		lon DOUBLE NOT NULL,
 
@@ -121,19 +174,19 @@ var schema = []string{
   		deleted_at TIMESTAMP NULL,
 		lat DOUBLE NOT NULL,
 		lon DOUBLE NOT NULL,
-		user_id VARCHAR(255) NOT NULL,
-		parent_id VARCHAR(1023) NOT NULL DEFAULT '',
+		user_id VARCHAR(255),
+		parent VARCHAR(1023) NOT NULL DEFAULT '',
 		access_type ENUM('public', 'private') NOT NULL DEFAULT 'public',
 		content TEXT NOT NULL,
 
-		INDEX idx_parent (parent_id),
+		INDEX idx_parent (parent),
 		INDEX idx_latlon (lat, lon),
 		INDEX idx_created (created_at),
 		INDEX idx_deleted (updated_at),
 
 		FOREIGN KEY fk_user_posts (user_id)
 			REFERENCES users(id)
-			ON DELETE CASCADE
+			ON DELETE SET NULL
 	);`,
 
 	`CREATE TABLE IF NOT EXISTS votes (
@@ -149,7 +202,7 @@ var schema = []string{
 
   		FOREIGN KEY fk_user_votes (user_id)
     		REFERENCES users(id)
-    		ON DELETE CASCADE,
+    		ON DELETE SET NULL,
 
   		FOREIGN KEY fk_post_votes (post_id)
   		  REFERENCES posts(id)
@@ -168,33 +221,19 @@ var schema = []string{
 	FROM votes
 	GROUP BY post_id`,
 
+	`CREATE VIEW IF NOT EXISTS children_view AS
+		SELECT y.id, 
+		(SELECT COUNT(p.id) FROM posts p WHERE p.parent LIKE CONCAT(y.parent, '/', y.id, '%')) AS num_children
+	FROM posts y`,
+
 	`CREATE VIEW IF NOT EXISTS post_view AS
-		SELECT p.id, p.created_at, p.updated_at, p.lat, p.lon, p.user_id, p.access_type, p.parent_id, 
-		p.content, u.username, u.display_name, v.positive, v.negative
+		SELECT p.*, pu.username, pu.display_name, IFNULL(vv.positive, 0) as positive, IFNULL(vv.negative, 0) as negative, 
+		u.id AS vote_user_id, u.username as vote_username, IFNULL(v.vote, 0) AS vote_state, c.num_children,
+		IFNULL(((positive + 1.9208) / (positive + negative) - 1.96 * SQRT((positive * negative) / (positive + negative) + 0.9604) /(positive + negative)) / (1 + 3.8416 / (positive + negative)), 0) AS score
 	FROM posts p 
-	JOIN users u ON p.user_id = u.id
-	JOIN vote_view v ON v.post_id = p.id`,
-}
-
-// NullTime represents a time.Time that may be null. NullTime implements the
-// sql.Scanner interface so it can be used as a scan destination, similar to
-// sql.NullString.
-type NullTime struct {
-	time.Time
-	Null bool // Valid is true if Time is not NULL
-}
-
-// Scan implements the Scanner interface.
-func (nt *NullTime) Scan(value interface{}) error {
-	nt.Time, nt.Null = value.(time.Time)
-	nt.Null = !nt.Null
-	return nil
-}
-
-// Value implements the driver Valuer interface.
-func (nt NullTime) Value() (driver.Value, error) {
-	if nt.Null {
-		return nil, nil
-	}
-	return nt.Time, nil
+	JOIN users pu ON p.user_id = pu.id
+	LEFT JOIN vote_view vv ON vv.post_id = p.id
+	CROSS JOIN users u
+	LEFT JOIN votes v ON u.id = v.user_id AND p.id = v.post_id
+	JOIN children_view c ON p.id = c.id`,
 }

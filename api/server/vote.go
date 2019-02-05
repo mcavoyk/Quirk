@@ -1,36 +1,41 @@
 package server
 
 import (
-	"net/http"
-	"strconv"
-
+	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/go-sql-driver/mysql"
 	"github.com/mcavoyk/quirk/api/models"
+	"net/http"
 )
 
-func (env *Env) PostVote(c *gin.Context) {
-	postID := c.Param("id")
-	user := c.GetString(UserContext)
-	stateStr := c.Query("state")
-
-	state, err := strconv.Atoi(stateStr)
-	if err != nil {
+func (env *Env) SubmitVote(c *gin.Context) {
+	vote := &models.Vote{}
+	if err := c.ShouldBind(vote); err != nil {
+		env.Log.Debugf("Submit vote error: %s", err.Error())
 		c.JSON(http.StatusBadRequest, gin.H{
-			"Error": "Invalid or missing format for value 'state'",
+			"status": "Missing or invalid field 'vote'",
 		})
 		return
 	}
+	vote.UserID = c.GetString(UserContext)
+	vote.PostID = c.Param("id")
 
-	newVote := &models.Vote{
-		PostID: postID,
-		User:   user,
-		State:  state,
-	}
-	if err := env.DB.InsertOrUpdateVote(newVote); err != nil {
+	if err := env.DB.InsertVote(vote); err != nil {
+		errNum := -1
+		if sqlErr, ok := err.(*mysql.MySQLError); ok {
+			errNum = int(sqlErr.Number)
+		}
+		if errNum == 1452 {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"status": fmt.Sprintf("Post '%s' does not exist", vote.PostID),
+			})
+			return
+		}
 		c.JSON(http.StatusBadRequest, gin.H{
-			"Error": err.Error(),
+			"status": "Invalid vote request",
 		})
 		return
 	}
 	c.JSON(http.StatusOK, http.StatusText(http.StatusOK))
 }
+

@@ -42,6 +42,7 @@ func main() {
 		logrus.Fatalf("Unable to setup database: %s", err.Error())
 	}
 	defer db.Close()
+	db.SetLogLevel(levelStr)
 
 	port := config.GetString("server.port")
 	log.Infof("Starting server on port %s", port)

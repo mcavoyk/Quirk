@@ -1,20 +1,18 @@
 package server
 
 import (
-	"math"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/mcavoyk/quirk/api/pkg/location"
 	"github.com/mcavoyk/quirk/api/models"
+	"github.com/mcavoyk/quirk/api/pkg/location"
 )
 
 type Post struct {
-	Content    string
-	AccessType string
-	Lat        float64
-	Lon        float64
+	Content    string  `json:"content" form:"content" binding:"required"`
+	AccessType string  `json:"access_type" form:"access_type" binding:"required"`
+	Lat        float64 `json:"lat" form:"lat" binding:"required"`
+	Lon        float64 `json:"lon" form:"lon" binding:"required"`
 }
 
 func convertPost(src *Post, dst *models.Post) *models.Post {
@@ -25,19 +23,37 @@ func convertPost(src *Post, dst *models.Post) *models.Post {
 	return dst
 }
 
+
 func (env *Env) GetPost(c *gin.Context) {
 	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"Invalid": "Post ID can not be empty",
-		})
+
+	post, err := env.DB.GetPost(id, c.GetString(UserContext))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"status": "Page not found"})
 		return
 	}
-
-	post := env.DB.GetPost(id)
 	c.JSON(http.StatusOK, post)
 }
 
+func (env *Env) DeletePost(c *gin.Context) {
+	id := c.Param("id")
+	userID := c.GetString(UserContext)
+
+	post, err := env.DB.GetPost(id, userID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"status": "Page not found"})
+		return
+	}
+
+	if err := env.HasPermission(userID, post.UserID); err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"status": "Forbidden"})
+		return
+	}
+
+	_ = env.DB.DeletePost(id)
+	c.Status(http.StatusNoContent)
+}
+/*
 func (env *Env) DeletePost(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
@@ -73,32 +89,31 @@ func (env *Env) PatchPost(c *gin.Context) {
 	c.JSON(http.StatusOK, http.StatusText(http.StatusOK))
 }
 
-func (env *Env) PostPost(c *gin.Context) {
+*/
+func (env *Env) CreatePost(c *gin.Context) {
 	parentID := c.Param("id")
-	post := &Post{}
-	if err := c.Bind(post); err != nil {
+	givenPost := &Post{}
+	if err := c.Bind(givenPost); err != nil {
 		return
 	}
 
-	newPost := convertPost(post, &models.Post{})
-	newPost.User = c.GetString(UserContext)
-	newPost.ParentID = parentID
+	newPost := convertPost(givenPost, &models.Post{})
+	newPost.UserID = c.GetString(UserContext)
+	newPost.Parent = parentID
 
-	postID, err := env.DB.InsertPost(newPost)
+	post, err := env.DB.InsertPost(newPost)
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"Error": err.Error(),
+			"Status": err.Error(),
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"ID":       postID,
-		"ParentID": parentID,
-	})
+	c.JSON(http.StatusOK, post)
 }
 
+/*
 // PostsGet wraps search functions for posts
 func (env *Env) SearchPosts(c *gin.Context) {
 	coords, err := extractCoords(c)
@@ -165,3 +180,4 @@ func absoluteScore(x, totalVotes, users float64) float64 {
 	}
 	return math.Round(x * totalVotes)
 }
+*/

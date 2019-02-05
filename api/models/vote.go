@@ -1,48 +1,58 @@
 package models
 
+import "fmt"
+
 // Vote represents a user's vote on a post
 type Vote struct {
-	User   string `db:"user_id"`
-	PostID string `binding:"required"`
-	State  int    `binding:"required"`
+	UserID string `json:"user_id" binding:"-"`
+	PostID string `json:"post_id" binding:"-"`
+	Vote   int    `json:"vote" form:"vote" binding:"min=-1,max=1"`
 }
 
 const (
 	Upvote   = 1
-	Abstain  = 0
 	Downvote = -1
 )
 
-// InsertOrUpdateVote Valid vote states are -1, 0, 1
-func (db *DB) InsertOrUpdateVote(vote *Vote) error {
-	_, err := db.NamedExec("INSERT INTO votes (user_id, post_id, state) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE state=VALUES(state)", vote)
-	return err
-}
+const InsertVotes = "INSERT INTO votes (user_id, post_id, vote) ON DUPLICATE KEY UPDATE vote = VALUES(vote)"
 
+// InsertOrUpdateVote Valid vote states are -1, 0, 1
+func (db *DB) InsertVote(vote *Vote) error {
+	if vote.Vote >= Downvote || vote.Vote <= Upvote {
+		sqlStmt := InsertValues(InsertVotes)
+		db.log.Debugf("Insert vote statement: %s", sqlStmt)
+		_, err := db.NamedExec(sqlStmt, vote)
+		if err != nil {
+			db.log.Warnf("Insert vote failed: %s", err.Error())
+		}
+		return err
+	} else {
+		return fmt.Errorf("Invalid vote state '%d'", vote.Vote)
+	}
+}
 
 func (db *DB) GetVotesByUser(user string) []Vote {
 	votes := make([]Vote, 0)
 	return votes
 	/*
-	rows, err := db.Table("votes").Where("User = ?", user).Rows()
-	if err != nil {
-		fmt.Printf("SQL Error: %s\n", err.Error())
-		return nil
-	}
-
-	defer rows.Close()
-
-
-	for true {
-		if !rows.Next() {
-			break
+		rows, err := db.Table("votes").Where("User = ?", user).Rows()
+		if err != nil {
+			fmt.Printf("SQL Error: %s\n", err.Error())
+			return nil
 		}
 
-		newVote := Vote{}
-		_ = db.ScanRows(rows, &newVote)
-		votes = append(votes, newVote)
-	}
-	return votes
+		defer rows.Close()
+
+
+		for true {
+			if !rows.Next() {
+				break
+			}
+
+			newVote := Vote{}
+			_ = db.ScanRows(rows, &newVote)
+			votes = append(votes, newVote)
+		}
+		return votes
 	*/
 }
-

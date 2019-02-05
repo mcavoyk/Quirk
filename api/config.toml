@@ -1,9 +1,6 @@
 [server]
 port = ":5000"
 log_level = "debug"
-tls_disable = true
-tls_cert_file = "./dev-keys/tls.crt"
-tls_key_file = "./dev-keys/tls.key"
 
 [database]
 address = "localhost:3306"

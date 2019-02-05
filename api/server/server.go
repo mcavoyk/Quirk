@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -28,4 +29,11 @@ func NewRouter(env *Env) http.Handler {
 
 func NewPass() string {
 	return uuid.New().String()
+}
+
+func (env *Env) HasPermission(userID, resourceID string) error {
+	if userID == resourceID {
+		return nil
+	}
+	return fmt.Errorf("Invalid permissions")
 }

@@ -142,11 +142,12 @@ func (env *Env) LoginUser(c *gin.Context) {
 	if validPass {
 		expiry := time.Now().Add(14 * 24 * time.Hour)
 		session, err := env.DB.InsertSession(&models.Session{
-			UserID: user.ID,
-			Expiry: expiry,
-			Lat:    newLogin.Lat,
-			Lon:    newLogin.Lon,
-			IP:     ip.Parse(c.Request),
+			UserID:    user.ID,
+			Expiry:    expiry,
+			Lat:       newLogin.Lat,
+			Lon:       newLogin.Lon,
+			IP:        ip.Parse(c.Request),
+			UserAgent: c.GetHeader("User-Agent"),
 		})
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
@@ -185,6 +186,19 @@ func (env *Env) GetUser(c *gin.Context) {
 
 	user.Password = ""
 	c.JSON(http.StatusOK, user)
+}
+
+func (env *Env) DeleteUser(c *gin.Context) {
+	id := c.Param("id")
+	userID := c.GetString(UserContext)
+
+	if err := env.HasPermission(userID, id); err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"status": "Forbidden"})
+		return
+	}
+
+	_ = env.DB.DeleteUser(id)
+	c.Status(http.StatusNoContent)
 }
 
 func extractToken(c *gin.Context) string {

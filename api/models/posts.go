@@ -3,7 +3,7 @@ package models
 import (
 	"errors"
 	"fmt"
-	"time"
+	"strings"
 
 	"github.com/mcavoyk/quirk/api/pkg/location"
 )
@@ -13,47 +13,63 @@ const Distance = 8.04672 // KM (5 Miles)
 // Post represents top level content, viewable based on a user's location
 // and the Posts Lat/Long
 type Post struct {
-	ID          string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-	User        string `gorm:"index:user"`
-	ParentID    string
-	Depth       int     `gorm:"index:depth"`
-	Content     string  `sql:"type:JSON"`
-	Score       float64 `gorm:"-"`
-	Positive    int     `gorm:"index:positive" json:"-" `
-	Negative    int     `gorm:"index:negative" json:"-"`
-	AccessType  string
-	VoteState   int `gorm:"-"`
-	NumComments int
-	Collapsed   bool
-	ColReason   string
-	Lat         float64 `gorm:"index:latitude"`
-	Lon         float64 `gorm:"index:longitude"`
+	Default
+	UserID     string  `json:"user_id"`
+	Parent     string  `json:"parent"`
+	Lat        float64 `json:"lat"`
+	Lon        float64 `json:"lon"`
+	AccessType string  `json:"access_type"`
+	Content    string  `json:"content"`
 }
 
-func (db *DB) InsertPost(post *Post) (string, error) {
-	if post.ParentID != "" {
-		parent := db.GetPost(post.ParentID)
-		if parent.ID == "" {
-			return "", errors.New("invalid post parent")
+type PostInfo struct {
+	Post
+	Positive    int     `json:"positive"`
+	Negative    int     `json:"negative"`
+	Score       float64 `json:"score"`
+	Username    string  `json:"username"`
+	DisplayName string  `json:"display_name"`
+	VoteState   int     `json:"vote_state"`
+	NumChildren int     `json:"num_children"`
+	//Collapsed   bool
+	//ColReason   string
+}
+
+const InsertPost = "INSERT INTO posts (id, user_id, parent, lat, lon, access_type, content)"
+
+func (db *DB) InsertPost(post *Post) (*PostInfo, error) {
+	if post.Parent != "" {
+		parentSplit := strings.Split(post.Parent, "/")
+		lastParent := parentSplit[len(parentSplit)-1]
+		parent, err := db.GetPost(lastParent, post.UserID)
+		if err != nil {
+			return nil, errors.New("invalid post parent")
 		}
-		post.Depth = parent.Depth + 1
-
+		post.Parent = fmt.Sprintf("%s/%s", parent.Parent, lastParent)
 	}
-	post.ID = NewGUID()
-	post.CreatedAt = time.Now()
-	//db.Create(post)
 
-	// Ignore error because this is a valid vote state
-	_ = db.InsertOrUpdateVote(&Vote{User: post.User, PostID: post.ID, State: Upvote})
-	return post.ID, nil
+	post.ID = NewGUID()
+	sqlStmt := InsertValues(InsertPost)
+	db.log.Debugf("Insert post statement: %s", sqlStmt)
+	_, err := db.NamedExec(sqlStmt, post)
+	if err != nil {
+		db.log.Warnf("Insert post failed: %s", err.Error())
+		return nil, err
+	}
+
+	_ = db.InsertVote(&Vote{UserID: post.UserID, PostID: post.ID, Vote: Upvote})
+	return db.GetPost(post.ID, post.UserID)
 }
 
-func (db *DB) GetPost(id string) *Post {
-	post := new(Post)
-	//db.Where("ID = ?", id).First(post)
-	return post
+func (db *DB) GetPost(id string, user string) (*PostInfo, error) {
+	post := new(PostInfo)
+	err := db.Unsafe().Get(post, "SELECT * FROM post_view WHERE id=? AND vote_user_id=?", id, user)
+	if err != nil {
+		db.log.Debugf("Get post failed: %s", err.Error())
+		return nil, err
+	}
+	post.Lat, post.Lon = location.ToDegrees(post.Lat), location.ToDegrees(post.Lon)
+	return post, nil
 }
 
 func (db *DB) UpdatePost(post *Post) {
@@ -62,12 +78,12 @@ func (db *DB) UpdatePost(post *Post) {
 	return
 }
 
-func (db *DB) DeletePost(id string) {
-	if id == "" { // Gorm deletes all records if primary key is blank
-		return
+func (db *DB) DeletePost(id string) error {
+	_, err := db.Exec("UPDATE posts SET deleted_at = NOW() WHERE id=?", id)
+	if err != nil {
+		db.log.Debugf("Delete post failed: %s", err.Error())
 	}
-	//db.Delete(&Post{ID: id})
-	return
+	return err
 }
 
 func (db *DB) PostsByDistance(lat, lon float64, page, pageSize int) []Post {
