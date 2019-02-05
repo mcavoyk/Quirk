@@ -24,9 +24,9 @@ func loadRoutes(router *gin.Engine, env *Env) {
 		api.DELETE("/post/:id", env.DeletePost)
 
 		api.POST("/post/:id/post", env.CreatePost)
-		//api.GET("/post/:id/posts", env.GetPostChildren)
+		api.GET("/post/:id/posts", env.GetPostChildren)
 		api.POST("/post/:id/vote", env.SubmitVote)
 
-		//api.GET("/posts", env.SearchPosts)
+		api.GET("/posts", env.SearchPosts)
 	}
 }

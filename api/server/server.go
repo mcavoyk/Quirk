@@ -37,3 +37,10 @@ func (env *Env) HasPermission(userID, resourceID string) error {
 	}
 	return fmt.Errorf("Invalid permissions")
 }
+
+type Results struct {
+	Page    int `json:"page" form:"page,default=1" binding:"min=1"`
+	PerPage int `json:"per_page" form:"per_page,default=25" binding:"min=1"`
+	Count   int `json:"count"`
+	Results interface{} `json:"results"`
+}

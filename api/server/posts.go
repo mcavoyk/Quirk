@@ -1,11 +1,11 @@
 package server
 
 import (
-	"net/http"
-
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/mcavoyk/quirk/api/models"
 	"github.com/mcavoyk/quirk/api/pkg/location"
+	"net/http"
 )
 
 type Post struct {
@@ -53,25 +53,8 @@ func (env *Env) DeletePost(c *gin.Context) {
 	_ = env.DB.DeletePost(id)
 	c.Status(http.StatusNoContent)
 }
+
 /*
-func (env *Env) DeletePost(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"Invalid": "Post ID can not be empty",
-		})
-		return
-	}
-
-	currentPost := env.DB.GetPost(id)
-	if currentPost.User != c.GetString(UserContext) {
-		c.Status(http.StatusForbidden)
-		return
-	}
-	env.DB.DeletePost(id)
-	c.JSON(http.StatusOK, http.StatusText(http.StatusOK))
-}
-
 func (env *Env) PatchPost(c *gin.Context) {
 	id := c.Param("id")
 	post := &Post{}
@@ -113,71 +96,71 @@ func (env *Env) CreatePost(c *gin.Context) {
 	c.JSON(http.StatusOK, post)
 }
 
-/*
-// PostsGet wraps search functions for posts
+
+// SearchPosts wraps search functions for posts
 func (env *Env) SearchPosts(c *gin.Context) {
 	coords, err := extractCoords(c)
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"Error": err.Error(),
+			"status": err.Error(),
 		})
 	}
 
-	pageStr := c.DefaultQuery("page", "1")
-	pageSizeStr := c.DefaultQuery("pagesize", "25")
-	page, pageErr := strconv.Atoi(pageStr)
-	pageSize, pageSizeErr := strconv.Atoi(pageSizeStr)
-
-	if pageErr != nil || pageSizeErr != nil {
+	pageInfo := Results{}
+	if err := c.ShouldBind(&pageInfo); err != nil {
+		env.Log.Debugf("Search posts binding error: %s", err.Error())
 		c.JSON(http.StatusBadRequest, gin.H{
-			"Error": "Invalid page and pagesize format",
+			"status": "Invalid fields for 'page' or 'per_page'",
 		})
 		return
 	}
 
-	posts := env.DB.PostsByDistance(coords.Lat, coords.Lon, int(page), int(pageSize))
-	votes := env.DB.GetVotesByUser(c.GetString(UserContext))
-	env.Log.Debugf("Found %d votes submitted by user %s", len(votes), c.GetString(UserContext))
+	posts, err := env.DB.PostsByDistance(coords.Lat, coords.Lon, c.GetString(UserContext), pageInfo.Page, pageInfo.PerPage, )
 
-	//userCount := env.DB.UsersByDistance(coords.Lat, coords.Lon)
-	//env.Log.Debugf("Found %d users in the radius of posts", userCount)
-
-
-	for i := 0; i < len(posts); i++ {
-		posts[i].Score = float64(posts[i].Positive - posts[i].Negative)
-		for j := 0; j < len(votes); j++ {
-			if posts[i].ID == votes[j].PostID {
-				posts[i].VoteState = votes[j].State
-				break
-			}
-		}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"status": err.Error(),
+		})
+		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"Posts": posts,
-	})
+	pageInfo.Count = len(posts)
+	pageInfo.Results = posts
+	c.JSON(http.StatusOK, pageInfo)
 }
 
-func (env *Env) GetPostsByPost(c *gin.Context) {
-	id := c.Param("id")
-	posts := env.DB.PostsByParent(id)
-	c.JSON(http.StatusOK, posts)
-	return
-}
+func (env *Env) GetPostChildren(c *gin.Context) {
+	pageInfo := Results{}
+	parentID := c.Param("id")
+	userID := c.GetString(UserContext)
 
-// absoluteScore takes x - the wilson score of a post and the amount
-// of users in the area and tries to create an absolute score
-// using this to test a bit https://play.golang.org/p/iWDg0P9vXIP
-func absoluteScore(x, totalVotes, users float64) float64 {
-	//userScalar := math.Log(math.Max(float64(users), 1))
-	startingWilsonScore := 0.206543
-
-	// negative score
-	shiftedScore := x - startingWilsonScore
-	if (shiftedScore) < 0 {
-		return math.Round(shiftedScore * totalVotes)
+	if err := c.ShouldBind(&pageInfo); err != nil {
+		env.Log.Debugf("Search posts binding error: %s", err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{
+			"status": "Invalid fields for 'page' or 'per_page'",
+		})
+		return
 	}
-	return math.Round(x * totalVotes)
+
+	parentPost, err := env.DB.GetPost(parentID, userID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"status": "Page not found",
+		})
+		return
+	}
+
+	posts, err := env.DB.PostsByParent(fmt.Sprintf("%s/%s", parentPost.Parent, parentPost.ID), userID, pageInfo.Page, pageInfo.PerPage)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"status": err.Error(),
+		})
+		return
+	}
+
+	pageInfo.Count = len(posts)
+	pageInfo.Results = posts
+	c.JSON(http.StatusOK, pageInfo)
 }
-*/

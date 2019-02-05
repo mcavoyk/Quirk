@@ -86,8 +86,9 @@ func (db *DB) DeletePost(id string) error {
 	return err
 }
 
-func (db *DB) PostsByDistance(lat, lon float64, page, pageSize int) []Post {
-	posts := make([]Post, 0)
+func (db *DB) PostsByDistance(lat, lon float64, userID string, page, pageSize int) ([]PostInfo, error) {
+	lat, lon = location.ToRadians(lat), location.ToRadians(lon)
+	posts := []PostInfo{}
 
 	points := location.BoundingPoints(&location.Point{lat, lon}, Distance)
 	minLat := points[0].Lat
@@ -95,58 +96,32 @@ func (db *DB) PostsByDistance(lat, lon float64, page, pageSize int) []Post {
 	maxLat := points[1].Lat
 	maxLon := points[1].Lon
 
-	rows, err := db.Queryx("SELECT *, "+wilsonOrder+" FROM posts WHERE "+
-		byDistance+" ORDER BY score DESC",
-		minLat, maxLat, minLon, maxLon,
-		lat, lat, lon, Distance/location.EarthRadius)
+	db.log.Debugf("minLat %f | minLon %f | maxLat %f | maxLon %f | lat %f | lon %f", minLat,  minLon, maxLat, maxLon, lat, lon)
+	err := db.Unsafe().Select(&posts, "SELECT * FROM post_view WHERE deleted_at IS NULL AND vote_user_id = ? AND "+
+		byDistance+" ORDER BY score DESC LIMIT ? OFFSET ?",
+		userID, minLat, maxLat, minLon, maxLon, lat, lat, lon, Distance/location.EarthRadius,
+		pageSize, (page - 1) * pageSize)
 
 	if err != nil {
-		fmt.Printf("SQL Error: %s\n", err.Error())
-		return nil
+		db.log.Errorf("Select posts by distance error: %s", err.Error())
+		return nil, err
 	}
 
-	defer rows.Close()
-
-	start := (page - 1) * pageSize
-	end := start + pageSize
-	index := 0
-	for true {
-		if !rows.Next() || index > end {
-			break
-		}
-
-		newPost := Post{}
-		_ = rows.Scan(&newPost)
-		posts = append(posts, newPost)
-		index++
-	}
-	return posts
+	return posts, nil
 }
 
-func (db *DB) PostsByParent(parentID string) []Post {
-	posts := make([]Post, 0)
+func (db *DB) PostsByParent(parent, user string, page, pageSize int) ([]PostInfo, error) {
+	posts := make([]PostInfo, 0)
 
-	rows, err := db.Queryx("WITH RECURSIVE cte as ("+
-		"SELECT * FROM posts WHERE parent_id = ? UNION ALL "+
-		"SELECT p.* FROM posts p INNER JOIN cte on p.parent_id = cte.id) "+
-		"SELECT * FROM cte", parentID)
+	err := db.Unsafe().Select(&posts,"SELECT * FROM post_view WHERE vote_user_id = ? AND " +
+		"parent LIKE CONCAT(?, '%') ORDER BY score DESC LIMIT ? OFFSET ?", user, parent, pageSize, (page - 1) * pageSize)
+
 	if err != nil {
-		fmt.Printf("SQL Error: %s\n", err.Error())
-		return nil
+		db.log.Errorf("Select posts by parent error: %s", err.Error())
+		return nil, err
 	}
 
-	defer rows.Close()
-	for true {
-		if !rows.Next() {
-			break
-		}
-
-		newPost := Post{}
-		err = rows.Scan(&newPost)
-		posts = append(posts, newPost)
-	}
-	return posts
-
+	return posts, nil
 }
 
 const wilsonOrder = "((positive + 1.9208) / (positive + negative) - 1.96 * SQRT((positive * negative) / (positive + negative)" +
