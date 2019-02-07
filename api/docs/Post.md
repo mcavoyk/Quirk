@@ -14,6 +14,8 @@ Actions:
 
 * [Create post as reply](#create-post-as-reply)
 
+* [Update post](#update-post)
+
 * [Delete post](#delete-post)
 
 * [Vote on a post](#vote-on-a-post)
@@ -36,7 +38,7 @@ based on their distance to where the post was created.
 | ---------- | ---- | -------- | ----------- |
 | `latitude` | number | yes |  The latitude in degrees of the user making the post |
 | `longitude` | number | yes |  The longitude in degrees of the user making the post|
-| `accessType` | string | yes | Visibility of post, `public` or `private` |
+| `access_type` | string | yes | Visibility of post, `public` or `private` |
 | `content` | string | yes | The content of the post |
 
 
@@ -51,8 +53,22 @@ This action creates a post which will be a reply to another post.
 | `id` | string | yes | The ID of the post to reply |
 | `latitude` | number | yes |  The latitude in degrees of the user making the post |
 | `longitude` | number | yes |  The longitude in degrees of the user making the post|
-| `accessType` | string | yes | Visibility of post, `public` or `private` |
+| `access_type` | string | yes | Visibility of post, `public` or `private` |
 | `content` | string | yes | The content of the post |
+
+### Update post
+
+This action updates the post to contain the new content.
+
+`PATCH /post/:id` 
+
+| **Attributes** | **Type** | **Required** | **Description** |
+| ---------- | ---- | -------- | ----------- |
+| `id` | string | yes | The ID of the post to update |
+| `latitude` | number | yes |  The latitude in degrees of the user making the post |
+| `longitude` | number | yes |  The longitude in degrees of the user making the post|
+| `access_type` | string | no | Visibility of post, `public` or `private` |
+| `content` | string | no | The content of the post |
 
 
 ### Delete post

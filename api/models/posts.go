@@ -72,10 +72,16 @@ func (db *DB) GetPost(id string, user string) (*PostInfo, error) {
 	return post, nil
 }
 
-func (db *DB) UpdatePost(post *Post) {
-	post.ID = "" // Prevent user from updating primary key
-	//db.Model(post).Updates(post)
-	return
+func (db *DB) UpdatePost(post *Post, user string) (*PostInfo, error) {
+	sqlStmt := "UPDATE posts " + createSet(*post) + " WHERE id = ?"
+	db.log.Debugf("Update post SQL: %s", sqlStmt)
+	_, err := db.Exec(sqlStmt, post.ID)
+	if err != nil {
+		db.log.Debugf("Update post failed: %s", err.Error())
+		//db.log.Debugf("Update post SQL: %s", sqlStmt)
+		return nil, err
+	}
+	return db.GetPost(post.ID, user)
 }
 
 func (db *DB) DeletePost(id string) error {

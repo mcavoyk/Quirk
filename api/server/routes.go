@@ -20,7 +20,7 @@ func loadRoutes(router *gin.Engine, env *Env) {
 
 		api.POST("/post", env.CreatePost)
 		api.GET("/post/:id", env.GetPost)
-		//api.PATCH("/post/:id", env.UpdatePost)
+		api.PATCH("/post/:id", env.UpdatePost)
 		api.DELETE("/post/:id", env.DeletePost)
 
 		api.POST("/post/:id/post", env.CreatePost)

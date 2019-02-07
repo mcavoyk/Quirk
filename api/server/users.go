@@ -5,13 +5,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mcavoyk/quirk/api/pkg/gfyid"
+
 	"github.com/mcavoyk/quirk/api/pkg/ip"
 
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/gin-gonic/gin"
 	"github.com/mcavoyk/quirk/api/models"
-	"github.com/mcavoyk/quirk/api/pkg/gfyid"
 )
 
 type User struct {
@@ -26,37 +27,6 @@ type Login struct {
 	Password string  `json:"password" form:"password" binding:"required"`
 	Lat      float64 `json:"lat" form:"lat" binding:"min=-90,max=90"`
 	Lon      float64 `json:"lon" form:"lon" binding:"min=-180,max=180"`
-}
-
-func (env *Env) UserVerify(c *gin.Context) {
-	sessionID := extractToken(c)
-	if sessionID == "" {
-		c.AbortWithStatus(http.StatusForbidden)
-		return
-	}
-	existingSession, err := env.DB.GetSession(sessionID)
-	if err != nil {
-		c.AbortWithStatus(http.StatusForbidden)
-		return
-	}
-
-	existingUser, err := env.DB.GetUserBySession(sessionID)
-	if err != nil {
-		c.AbortWithStatus(http.StatusForbidden)
-		return
-	}
-
-	// Extract and use coords if they are included and valid
-	coords, err := extractCoords(c)
-	if err == nil {
-		existingSession.Lat = coords.Lat
-		existingSession.Lon = coords.Lon
-	}
-	existingSession.IP = ip.Parse(c.Request)
-
-	env.DB.SessionUpdate(existingSession)
-	c.Set(UserContext, existingUser.ID)
-	c.Next()
 }
 
 func (env *Env) CreateUser(c *gin.Context) {
@@ -115,6 +85,77 @@ func (env *Env) CreateUser(c *gin.Context) {
 	c.JSON(http.StatusCreated, user)
 }
 
+func (env *Env) UserVerify(c *gin.Context) {
+	sessionID := extractToken(c)
+	if sessionID == "" {
+		c.AbortWithStatus(http.StatusForbidden)
+		return
+	}
+	existingSession, err := env.DB.GetSession(sessionID)
+	if err != nil {
+		c.AbortWithStatus(http.StatusForbidden)
+		return
+	}
+
+	existingUser, err := env.DB.GetUserBySession(sessionID)
+	if err != nil {
+		c.AbortWithStatus(http.StatusForbidden)
+		return
+	}
+
+	// Extract and use coords if they are included and valid
+	coords, err := extractCoords(c)
+	if err == nil {
+		existingSession.Lat = coords.Lat
+		existingSession.Lon = coords.Lon
+	}
+	existingSession.IP = ip.Parse(c.Request)
+
+	env.DB.SessionUpdate(existingSession)
+	c.Set(UserContext, existingUser.ID)
+	c.Next()
+}
+
+func (env *Env) GetUser(c *gin.Context) {
+	id := c.Param("id")
+	user, err := env.DB.GetUser(id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"status": "Page not found",
+		})
+		return
+	}
+
+	if user.ID != c.GetString(UserContext) {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"status": "Unauthorized",
+		})
+		return
+	}
+
+	user.Password = ""
+	c.JSON(http.StatusOK, user)
+}
+
+/*
+func (env *Env) UpdateUser(c *gin.Context) {
+
+}
+*/
+
+func (env *Env) DeleteUser(c *gin.Context) {
+	id := c.Param("id")
+	userID := c.GetString(UserContext)
+
+	if err := env.HasPermission(userID, id); err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"status": "Forbidden"})
+		return
+	}
+
+	_ = env.DB.DeleteUser(id)
+	c.Status(http.StatusNoContent)
+}
+
 func (env *Env) LoginUser(c *gin.Context) {
 	newLogin := new(Login)
 	if err := c.ShouldBind(newLogin); err != nil {
@@ -126,7 +167,7 @@ func (env *Env) LoginUser(c *gin.Context) {
 	}
 
 	user, err := env.DB.GetUserByName(newLogin.Username)
-	if err != nil  || user.DeletedAt != nil {
+	if err != nil || user.DeletedAt != nil {
 		env.Log.Debugf("User %s not found on login", newLogin.Username)
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"status": "Unauthorized",
@@ -161,40 +202,6 @@ func (env *Env) LoginUser(c *gin.Context) {
 			"status": "Unauthorized",
 		})
 	}
-}
-
-func (env *Env) GetUser(c *gin.Context) {
-	id := c.Param("id")
-	user, err := env.DB.GetUser(id)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"status": "Page not found",
-		})
-		return
-	}
-
-	if user.ID != c.GetString(UserContext) {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"status": "Unauthorized",
-		})
-		return
-	}
-
-	user.Password = ""
-	c.JSON(http.StatusOK, user)
-}
-
-func (env *Env) DeleteUser(c *gin.Context) {
-	id := c.Param("id")
-	userID := c.GetString(UserContext)
-
-	if err := env.HasPermission(userID, id); err != nil {
-		c.JSON(http.StatusForbidden, gin.H{"status": "Forbidden"})
-		return
-	}
-
-	_ = env.DB.DeleteUser(id)
-	c.Status(http.StatusNoContent)
 }
 
 func extractToken(c *gin.Context) string {
