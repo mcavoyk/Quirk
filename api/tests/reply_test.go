@@ -3,20 +3,18 @@ package tests
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/mcavoyk/quirk/api/server"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"testing"
 
-	"github.com/mcavoyk/quirk/api/server"
-
 	"github.com/stretchr/testify/assert"
-	baloo "gopkg.in/h2non/baloo.v3"
+	"gopkg.in/h2non/baloo.v3"
 )
 
 const (
-	url  = "http://localhost:5005"
-	base = "/api/v1"
+	url  = "http://localhost:5000/api/v1"
 )
 
 var (
@@ -25,11 +23,19 @@ var (
 )
 
 func TestHealth(t *testing.T) {
-	assert.Nil(t, api.Get(base+"/health").
+	assert.Nil(t, api.Get(url+"/health").
 		Expect(t).
 		Status(200).
 		Type("json").
 		Done())
+}
+
+func TestLogin(t *testing.T) {
+	token, err := auth(0, 0)
+	if err != nil {
+		t.Fatalf("Error authentication with api: %s", err.Error())
+	}
+	assert.NotEqual(t, "", token)
 }
 
 func TestPostReplies(t *testing.T) {
@@ -50,7 +56,7 @@ func TestPostReplies(t *testing.T) {
 		t.Fatalf("Error authentication with api: %s", err.Error())
 	}
 
-	assert.Nil(t, api.Get(base+"/post/"+idList1[0]+"/posts").
+	assert.Nil(t, api.Get(url+"/post/"+idList1[0]+"/posts?per_page="+fmt.Sprintf("%d",len(idList1))).
 		SetHeader("Authorization", "bearer "+token).
 		Expect(t).
 		Status(200).
@@ -61,7 +67,7 @@ func TestPostReplies(t *testing.T) {
 	assert.Equal(t, len(ids), len(idList1)-1)
 	ids = make([]string, 0)
 
-	assert.Nil(t, api.Get(base+"/post/"+idList2[0]+"/posts").
+	assert.Nil(t, api.Get(url+"/post/"+idList2[0]+"/posts?per_page="+fmt.Sprintf("%d",len(idList2))).
 		SetHeader("Authorization", "bearer "+token).
 		Expect(t).
 		Status(200).
@@ -79,14 +85,15 @@ func getListID(res *http.Response, req *http.Request) error {
 	if err != nil {
 		return fmt.Errorf("Invalid server response body: %s", err.Error())
 	}
-	var out []map[string]interface{}
+	var out server.Results
 	err = json.Unmarshal(body, &out)
 	if err != nil {
 		return fmt.Errorf("Invalid server json body: %s", err.Error())
 	}
 
-	for _, e := range out {
-		ids = append(ids, e["ID"].(string))
+	for _, e := range out.Results.([]interface{}) {
+		item := e.(map[string]interface{})
+		ids = append(ids, item["id"].(string))
 	}
 	return nil
 }
@@ -102,7 +109,7 @@ func getSingleID(res *http.Response, req *http.Request) error {
 	if err != nil {
 		return fmt.Errorf("Invalid server json body: %s", err.Error())
 	}
-	ids = append(ids, out["ID"].(string))
+	ids = append(ids, out["id"].(string))
 	return nil
 }
 
@@ -122,7 +129,7 @@ func createPostTree(t *testing.T, height int, reply string) {
 		reply = "/" + reply + "/post"
 	}
 	post1 := server.Post{"Test content", "public", 0.0, 0.0}
-	assert.Nil(t, api.Post(base+"/post"+reply).
+	assert.Nil(t, api.Post(url+"/post"+reply).
 		SetHeader("Authorization", "bearer "+token).
 		JSON(post1).
 		Expect(t).
@@ -140,7 +147,11 @@ func createPostTree(t *testing.T, height int, reply string) {
 }
 
 func auth(lat, lon float64) (string, error) {
-	resp, err := http.Get(url + base + fmt.Sprintf("/auth/token?lat=%f&lon=%f", lat, lon))
+	user, pass, err := login()
+	if err != nil {
+		return "", err
+	}
+	resp, err := http.Post(url+fmt.Sprintf("/user/login?lat=%f&lon=%f&username=%s&password=%s", lat, lon, user, pass), "", nil)
 	if err != nil {
 		return "", err
 	}
@@ -159,4 +170,27 @@ func auth(lat, lon float64) (string, error) {
 		return "", fmt.Errorf("error authorizing")
 	}
 	return tokenInterface.(string), nil
+}
+
+func login() (string, string, error) {
+	resp, err := http.Post(url+fmt.Sprintf("/user"), "", nil)
+	if err != nil {
+		return "", "", err
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", "", err
+	}
+	var jsonResp map[string]interface{}
+	err = json.Unmarshal(body, &jsonResp)
+	if err != nil {
+		return "", "", err
+	}
+	userInt, uOk := jsonResp["username"]
+	passInt, pOk := jsonResp["password"]
+	if !uOk || !pOk {
+		return "", "", fmt.Errorf("error authorizing")
+	}
+	return userInt.(string), passInt.(string), nil
 }

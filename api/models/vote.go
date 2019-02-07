@@ -6,7 +6,7 @@ import "fmt"
 type Vote struct {
 	UserID string `json:"user_id" binding:"-"`
 	PostID string `json:"post_id" binding:"-"`
-	Vote   int    `json:"vote" form:"vote" binding:"min=-1,max=1"`
+	Vote   int    `json:"vote" form:"state" binding:"min=-1,max=1"`
 }
 
 const (
@@ -20,9 +20,9 @@ const InsertVotes = "INSERT INTO votes (user_id, post_id, vote) ON DUPLICATE KEY
 func (db *DB) InsertVote(vote *Vote) error {
 	if vote.Vote >= Downvote || vote.Vote <= Upvote {
 		sqlStmt := InsertValues(InsertVotes)
-		db.log.Debugf("Insert vote statement: %s", sqlStmt)
 		_, err := db.NamedExec(sqlStmt, vote)
 		if err != nil {
+			db.log.Debugf("Insert vote SQL: %s", sqlStmt)
 			db.log.Warnf("Insert vote failed: %s", err.Error())
 		}
 		return err

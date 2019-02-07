@@ -24,8 +24,8 @@ type User struct {
 type Login struct {
 	Username string  `json:"username" form:"username" binding:"required"`
 	Password string  `json:"password" form:"password" binding:"required"`
-	Lat      float64 `json:"lat" form:"lat" binding:"required"`
-	Lon      float64 `json:"lon" form:"lon" binding:"required"`
+	Lat      float64 `json:"lat" form:"lat" binding:"min=-90,max=90"`
+	Lon      float64 `json:"lon" form:"lon" binding:"min=-180,max=180"`
 }
 
 func (env *Env) UserVerify(c *gin.Context) {
@@ -61,13 +61,7 @@ func (env *Env) UserVerify(c *gin.Context) {
 
 func (env *Env) CreateUser(c *gin.Context) {
 	newUser := new(User)
-	if err := c.ShouldBind(newUser); err != nil {
-		env.Log.Debugf("Failed to bind to user struct: %s", err.Error())
-		c.JSON(http.StatusBadRequest, gin.H{
-			"status": "Missing or invalid latitude and longitude",
-		})
-		return
-	}
+	_ = c.ShouldBind(newUser)
 
 	if newUser.Username != "" {
 		_, err := env.DB.GetUserByName(newUser.Username)
@@ -79,9 +73,11 @@ func (env *Env) CreateUser(c *gin.Context) {
 		}
 	} else {
 		newUser.Username = gfyid.RandomID()
+		env.Log.Infof("Random username: %s", newUser.Username)
 		_, err := env.DB.GetUserByName(newUser.Username)
-		for err != nil {
+		for err == nil {
 			newUser.Username = gfyid.RandomID()
+			env.Log.Infof("Random username: %s", newUser.Username)
 			_, err = env.DB.GetUserByName(newUser.Username)
 		}
 	}
@@ -130,7 +126,7 @@ func (env *Env) LoginUser(c *gin.Context) {
 	}
 
 	user, err := env.DB.GetUserByName(newLogin.Username)
-	if err != nil {
+	if err != nil  || user.DeletedAt != nil {
 		env.Log.Debugf("User %s not found on login", newLogin.Username)
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"status": "Unauthorized",

@@ -30,7 +30,7 @@ Actions:
 This action creates a top level post which will be viewable to other users
 based on their distance to where the post was created.
 
-`POST /api/post` 
+`POST /post` 
 
 | **Attributes** | **Type** | **Required** | **Description** |
 | ---------- | ---- | -------- | ----------- |
@@ -44,7 +44,7 @@ based on their distance to where the post was created.
 
 This action creates a post which will be a reply to another post.
 
-`POST /api/post/:id/post` 
+`POST /post/:id/post` 
 
 | **Attributes** | **Type** | **Required** | **Description** |
 | ---------- | ---- | -------- | ----------- |
@@ -59,7 +59,7 @@ This action creates a post which will be a reply to another post.
 
 This action requires being the same user who created the post.
 
-`DELETE /api/post/:id`
+`DELETE /post/:id`
 
 | **Attributes** | **Type** | **Required** | **Description** |
 | ---------- | ---- | -------- | ----------- |
@@ -77,7 +77,7 @@ have voted on the post.
 
 | **Attributes** | **Type** | **Required** | **Description** |
 | ---------- | ---- | -------- | ----------- |
-| `state` | int | yes | An integer, 1, 0, or -1, representing the vote |
+| `state` | int | yes | An integer (1, 0, or -1) representing the vote |
 
 
 ### Search posts by location
@@ -103,4 +103,6 @@ Get a list of posts in which are descendants of a given post.
 | **Attributes** | **Type** | **Required** | **Description** |
 | ---------- | ---- | -------- | ----------- |
 | `id` | string | yes | The ID of the post |
+| `page` | integer | no | The page number for posts |
+| `per_page` | integer | no | The number of posts to return |
 

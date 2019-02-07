@@ -209,7 +209,19 @@ var schema = []string{
     		ON DELETE CASCADE
 	);`,
 
-	`CREATE VIEW IF NOT EXISTS user_view AS
+	`CREATE VIEW IF NOT EXISTS posts_live AS
+		SELECT id, created_at, updated_at, deleted_at, lat, lon, parent, access_type, user_id,
+   	 	(CASE WHEN deleted_at IS NOT NULL THEN '[deleted]' ELSE content END) AS content
+    FROM posts`,
+
+    `CREATE VIEW IF NOT EXISTS users_live AS
+		SELECT id, created_at, updated_at, deleted_at,
+    	(CASE WHEN deleted_at IS NOT NULL THEN '[deleted]' ELSE username END) AS username,
+    	(CASE WHEN deleted_at IS NOT NULL THEN '[deleted]' ELSE display_name END) AS display_name,
+    	(CASE WHEN deleted_at IS NOT NULL THEN '[deleted]' ELSE email END) AS email
+    FROM users`,
+
+	`CREATE VIEW IF NOT EXISTS user_sessions AS
 		SELECT u.id, u.username, u.email, u.password, u.deleted_at, s.id AS session_id, s.created_at AS session_created, s.expiry, s.lat, s.lon, s.ip_address
 	FROM users u
 	JOIN sessions s ON u.id = s.user_id`,
@@ -230,10 +242,11 @@ var schema = []string{
 		SELECT p.*, pu.username, pu.display_name, IFNULL(vv.positive, 0) as positive, IFNULL(vv.negative, 0) as negative, 
 		u.id AS vote_user_id, u.username as vote_username, IFNULL(v.vote, 0) AS vote_state, c.num_children,
 		IFNULL(((positive + 1.9208) / (positive + negative) - 1.96 * SQRT((positive * negative) / (positive + negative) + 0.9604) /(positive + negative)) / (1 + 3.8416 / (positive + negative)), 0) AS score
-	FROM posts p 
-	JOIN users pu ON p.user_id = pu.id
+	FROM posts_live p 
+	JOIN users_live pu ON p.user_id = pu.id
 	LEFT JOIN vote_view vv ON vv.post_id = p.id
 	CROSS JOIN users u
 	LEFT JOIN votes v ON u.id = v.user_id AND p.id = v.post_id
-	JOIN children_view c ON p.id = c.id`,
+	JOIN children_view c ON p.id = c.id
+	WHERE u.deleted_at IS NULL`,
 }

@@ -27,13 +27,15 @@ type Session struct {
 	Lon       float64   `json:"lon"`
 }
 
-const insertUser = "INSERT INTO users (id, username, display_name, password, email) VALUES (:id, :username, :display_name, :password, :email)"
+const insertUser = "INSERT INTO users (id, username, display_name, password, email)"
 const insertSession = "INSERT INTO sessions (id, user_id, expiry, ip_address, user_agent, lat, lon)"
 
 func (db *DB) InsertUser(user *User) (*User, error) {
 	user.ID = NewGUID()
-	_, err := db.NamedExec(insertUser, user)
+	sqlStmt := InsertValues(insertUser)
+	_, err := db.NamedExec(sqlStmt, user)
 	if err != nil {
+		db.log.Debugf("Insert user SQL: %s", sqlStmt)
 		db.log.Warnf("Insert user failed: %s", err.Error())
 		return nil, err
 	}
@@ -42,7 +44,7 @@ func (db *DB) InsertUser(user *User) (*User, error) {
 
 func (db *DB) GetUser(id string) (*User, error) {
 	user := new(User)
-	err := db.Get(user, "SELECT * FROM users WHERE id=?", id)
+	err := db.Unsafe().Get(user, "SELECT * FROM users_live WHERE id=?", id)
 	if err != nil {
 		db.log.Debugf("Get user failed: %s", err.Error())
 		return nil, err
@@ -64,8 +66,10 @@ func (db *DB) GetUserByName(username string) (*User, error) {
 func (db *DB) InsertSession(session *Session) (*Session, error) {
 	session.ID = NewGUID()
 	session.Lat, session.Lon = location.ToRadians(session.Lat), location.ToRadians(session.Lon)
-	_, err := db.NamedExec(InsertValues(insertSession), session)
+	sqlStmt := InsertValues(insertSession)
+	_, err := db.NamedExec(sqlStmt, session)
 	if err != nil {
+		db.log.Debugf("Insert session SQL: %s", sqlStmt)
 		db.log.Warnf("Insert session failed: %s", err.Error())
 		return nil, err
 	}
@@ -84,7 +88,7 @@ func (db *DB) GetSession(id string) (*Session, error) {
 
 func (db *DB) GetUserBySession(sessionID string) (*User, error) {
 	user := new(User)
-	err := db.Unsafe().Get(user, "SELECT * FROM user_view WHERE session_id=?", sessionID)
+	err := db.Unsafe().Get(user, "SELECT * FROM user_sessions WHERE session_id=?", sessionID)
 	if err != nil {
 		db.log.Errorf("Get user by session failed: %s", err.Error())
 		return nil, err

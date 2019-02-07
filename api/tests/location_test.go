@@ -38,7 +38,7 @@ func createPost(t *testing.T, lat, lon float64) {
 	}
 
 	post := server.Post{gfyid.RandomID(), "public", lat, lon}
-	assert.Nil(t, api.Post(base+"/post").
+	assert.Nil(t, api.Post(url+"/post").
 		SetHeader("Authorization", "bearer "+token).
 		JSON(post).
 		Expect(t).

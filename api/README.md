@@ -16,5 +16,5 @@ The base path of all api resources is `/api/v1`.
 
 The following API resources are available:
 
-* [Authentication](docs/Authentication.md)
+* [Authentication](docs/User.md)
 * [Posts](docs/Post.md)

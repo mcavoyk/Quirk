@@ -11,8 +11,8 @@ import (
 type Post struct {
 	Content    string  `json:"content" form:"content" binding:"required"`
 	AccessType string  `json:"access_type" form:"access_type" binding:"required"`
-	Lat        float64 `json:"lat" form:"lat" binding:"required"`
-	Lon        float64 `json:"lon" form:"lon" binding:"required"`
+	Lat        float64 `json:"lat" form:"lat" binding:"min=-90,max=90"`
+	Lon        float64 `json:"lon" form:"lon" binding:"min=-180,max=180"`
 }
 
 func convertPost(src *Post, dst *models.Post) *models.Post {
@@ -134,6 +134,7 @@ func (env *Env) GetPostChildren(c *gin.Context) {
 	pageInfo := Results{}
 	parentID := c.Param("id")
 	userID := c.GetString(UserContext)
+	env.Log.Debugf("ParentID: %s | userID: %s", parentID, userID)
 
 	if err := c.ShouldBind(&pageInfo); err != nil {
 		env.Log.Debugf("Search posts binding error: %s", err.Error())
@@ -145,6 +146,7 @@ func (env *Env) GetPostChildren(c *gin.Context) {
 
 	parentPost, err := env.DB.GetPost(parentID, userID)
 	if err != nil {
+		env.Log.Debugf("ParentID: %s | userID: %s", parentID, userID)
 		c.JSON(http.StatusNotFound, gin.H{
 			"status": "Page not found",
 		})

@@ -50,9 +50,9 @@ func (db *DB) InsertPost(post *Post) (*PostInfo, error) {
 
 	post.ID = NewGUID()
 	sqlStmt := InsertValues(InsertPost)
-	db.log.Debugf("Insert post statement: %s", sqlStmt)
 	_, err := db.NamedExec(sqlStmt, post)
 	if err != nil {
+		db.log.Debugf("Insert post SQL: %s", sqlStmt)
 		db.log.Warnf("Insert post failed: %s", err.Error())
 		return nil, err
 	}
