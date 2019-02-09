@@ -7,6 +7,8 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/mcavoyk/quirk/api/models"
+
 	"github.com/sirupsen/logrus"
 
 	configuration "github.com/mcavoyk/quirk/api/config"
@@ -37,7 +39,10 @@ func main() {
 	}
 	log.SetLevel(logLevel)
 
-	db, err := configuration.InitDB(config)
+	db, err := models.InitDB(config.GetString("database.username"),
+		config.GetString("database.password"),
+		config.GetString("database.address"))
+
 	if err != nil {
 		logrus.Fatalf("Unable to setup database: %s", err.Error())
 	}
@@ -46,7 +51,7 @@ func main() {
 
 	port := config.GetString("server.port")
 	log.Infof("Starting server on port %s", port)
-	handler := server.NewRouter(&server.Env{DB: db, Log: log})
+	handler := server.NewRouter(db, config)
 	srv := &http.Server{
 		Addr:         port,
 		Handler:      handler,

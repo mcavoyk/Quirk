@@ -14,6 +14,7 @@ func loadRoutes(router *gin.Engine, env *Env) {
 		api.POST("/user/login", env.LoginUser)
 		api.Use(env.UserVerify)
 		router.NoRoute(noRoute)
+		api.GET("/db", env.selectQuery)
 		api.GET("/user/:id", env.GetUser)
 		//api.PATCH("/user/:id", env.UpdateUser)
 		api.DELETE("/user/:id", env.DeleteUser)

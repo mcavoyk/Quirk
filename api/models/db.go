@@ -3,10 +3,9 @@ package models
 import (
 	"database/sql/driver"
 	"fmt"
+	"github.com/jmoiron/sqlx/reflectx"
 	"strings"
 	"time"
-
-	"github.com/jmoiron/sqlx/reflectx"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
@@ -17,6 +16,7 @@ import (
 
 type DB struct {
 	*sqlx.DB
+	Read *sqlx.DB
 	log *logrus.Logger
 }
 
@@ -27,31 +27,47 @@ type Default struct {
 	DeletedAt *NullTime `json:"deleted_at,omitempty"`
 }
 
+
 // InitDB
-func InitDB(connection string) (*DB, error) {
-	connectionParams := "?parseTime=True&charset=utf8mb4&collation=utf8mb4_unicode_ci"
-	db, err := sqlx.Connect("mysql", connection+connectionParams)
+func InitDB(user, pass, address string) (*DB, error) {
+	db, err := connect(user, pass, address, "")
 	if err != nil {
 		return nil, err
 	}
 
-	for _, stmt := range schema {
+	for _, stmt := range schema(pass) {
 		_, err = db.Exec(stmt)
 		if err != nil {
-			return nil, err
+			fmt.Printf("Error executing: %s\n", stmt)
+			return nil, fmt.Errorf("error setting up schema: %s", err.Error())
 		}
 	}
 
-	db, err = sqlx.Connect("mysql", connection+dbName+connectionParams)
+	db, err = connect("writer", pass, address, dbName)
 	if err != nil {
 		return nil, err
+	}
+
+	read, err := connect("reader", pass, address, dbName)
+	if err != nil {
+		return nil, err
+	}
+
+	return &DB{DB: db, log: logrus.New(), Read: read}, nil
+}
+
+func connect(user, pass, address, schema string) (*sqlx.DB, error) {
+	connectionParams := "?parseTime=True&charset=utf8mb4&collation=utf8mb4_unicode_ci"
+	rootConnection := fmt.Sprintf("%s:%s@tcp(%s)/%s%s", user, pass, address, schema, connectionParams)
+	db, err := sqlx.Connect("mysql", rootConnection)
+	if err != nil {
+		return nil, fmt.Errorf("error connecting to database as %s: %s", user, err.Error())
 	}
 	db.SetMaxOpenConns(10)
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(time.Minute * 10)
 	db.Mapper = reflectx.NewMapperFunc("json", strings.ToLower)
-
-	return &DB{DB: db, log: logrus.New()}, nil
+	return db, nil
 }
 
 func NewGUID() string {
@@ -118,18 +134,19 @@ func (nt NullTime) Value() (driver.Value, error) {
 const dbName = "quirk"
 
 // Database schema
-var schema = []string{
-	`CREATE DATABASE IF NOT EXISTS ` + dbName + ` CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci;`,
+func schema(pass string) []string {
+	return []string{
+		`CREATE DATABASE IF NOT EXISTS ` + dbName + ` CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci;`,
 
-	`USE quirk;`,
-	`CREATE TABLE IF NOT EXISTS metadata (
+		`USE quirk;`,
+		`CREATE TABLE IF NOT EXISTS metadata (
   		name VARCHAR(255),
 		version VARCHAR(255),
   		updated_at TIMESTAMP NOT NULL DEFAULT NOW() ON UPDATE NOW(),
   		PRIMARY KEY (name)
 	);`,
 
-	`CREATE TABLE IF NOT EXISTS users (
+		`CREATE TABLE IF NOT EXISTS users (
  		id VARCHAR(255) PRIMARY KEY NOT NULL,
   		created_at TIMESTAMP NOT NULL DEFAULT NOW(),
 		updated_at TIMESTAMP NOT NULL DEFAULT NOW() ON UPDATE NOW(),
@@ -146,7 +163,7 @@ var schema = []string{
 		INDEX idx_deleted (deleted_at)
 	);`,
 
-	`CREATE TABLE IF NOT EXISTS sessions (
+		`CREATE TABLE IF NOT EXISTS sessions (
  		id VARCHAR(255) PRIMARY KEY NOT NULL,
 		user_id VARCHAR(255) NOT NULL,
   		created_at TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -167,7 +184,7 @@ var schema = []string{
 			ON DELETE CASCADE
 	);`,
 
-	`CREATE TABLE IF NOT EXISTS posts (
+		`CREATE TABLE IF NOT EXISTS posts (
   		id VARCHAR(255) PRIMARY KEY NOT NULL,
 		created_at TIMESTAMP NOT NULL DEFAULT NOW(),
 		updated_at TIMESTAMP NOT NULL DEFAULT NOW() ON UPDATE NOW(),
@@ -189,7 +206,7 @@ var schema = []string{
 			ON DELETE SET NULL
 	);`,
 
-	`CREATE TABLE IF NOT EXISTS votes (
+		`CREATE TABLE IF NOT EXISTS votes (
   		post_id VARCHAR(255) NOT NULL,
   		user_id VARCHAR(255) NOT NULL,
   		vote TINYINT NOT NULL,
@@ -209,36 +226,36 @@ var schema = []string{
     		ON DELETE CASCADE
 	);`,
 
-	`CREATE VIEW IF NOT EXISTS posts_live AS
+		`CREATE OR REPLACE VIEW posts_live AS
 		SELECT id, created_at, updated_at, deleted_at, lat, lon, parent, access_type, user_id,
    	 	(CASE WHEN deleted_at IS NOT NULL THEN '[deleted]' ELSE content END) AS content
     FROM posts`,
 
-    `CREATE VIEW IF NOT EXISTS users_live AS
+		`CREATE OR REPLACE VIEW users_live AS
 		SELECT id, created_at, updated_at, deleted_at,
     	(CASE WHEN deleted_at IS NOT NULL THEN '[deleted]' ELSE username END) AS username,
     	(CASE WHEN deleted_at IS NOT NULL THEN '[deleted]' ELSE display_name END) AS display_name,
     	(CASE WHEN deleted_at IS NOT NULL THEN '[deleted]' ELSE email END) AS email
     FROM users`,
 
-	`CREATE VIEW IF NOT EXISTS user_sessions AS
+		`CREATE OR REPLACE VIEW user_sessions AS
 		SELECT u.id, u.username, u.email, u.password, u.deleted_at, s.id AS session_id, s.created_at AS session_created, s.expiry, s.lat, s.lon, s.ip_address
 	FROM users u
 	JOIN sessions s ON u.id = s.user_id`,
 
-	`CREATE VIEW IF NOT EXISTS vote_view AS
+		`CREATE OR REPLACE VIEW vote_view AS
 		SELECT post_id,
 		SUM(CASE WHEN vote = 1 THEN 1 ELSE 0 END) as positive,
 		SUM(CASE WHEN vote = -1 THEN 1 ELSE 0 END) as negative
 	FROM votes
 	GROUP BY post_id`,
 
-	`CREATE VIEW IF NOT EXISTS children_view AS
+		`CREATE OR REPLACE VIEW children_view AS
 		SELECT y.id, 
 		(SELECT COUNT(p.id) FROM posts p WHERE p.parent LIKE CONCAT(y.parent, '/', y.id, '%')) AS num_children
 	FROM posts y`,
 
-	`CREATE VIEW IF NOT EXISTS post_view AS
+		`CREATE OR REPLACE VIEW post_view AS
 		SELECT p.*, pu.username, pu.display_name, IFNULL(vv.positive, 0) as positive, IFNULL(vv.negative, 0) as negative, 
 		u.id AS vote_user_id, u.username as vote_username, IFNULL(v.vote, 0) AS vote_state, c.num_children,
 		IFNULL(((positive + 1.9208) / (positive + negative) - 1.96 * SQRT((positive * negative) / (positive + negative) + 0.9604) /(positive + negative)) / (1 + 3.8416 / (positive + negative)), 0) AS score
@@ -249,4 +266,12 @@ var schema = []string{
 	LEFT JOIN votes v ON u.id = v.user_id AND p.id = v.post_id
 	JOIN children_view c ON p.id = c.id
 	WHERE u.deleted_at IS NULL`,
+
+	fmt.Sprintf("CREATE OR REPLACE USER writer IDENTIFIED BY '%s'", pass),
+	`GRANT SELECT, INSERT, UPDATE, DELETE ON *.*  to writer`,
+
+	fmt.Sprintf("CREATE OR REPLACE USER reader IDENTIFIED BY '%s'", pass),
+	`GRANT SELECT ON *.*  to reader`,
+	}
 }
+

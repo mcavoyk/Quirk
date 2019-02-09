@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"github.com/spf13/viper"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -15,26 +16,56 @@ type Env struct {
 	Log *logrus.Logger
 }
 
-const UserContext = "user"
+const (
+	UserContext = "User"
+	RootKey = "RootKey"
+)
 
-func NewRouter(env *Env) http.Handler {
-	if env.Log.Level != logrus.DebugLevel {
+func NewRouter(db *models.DB, config *viper.Viper) http.Handler {
+	levelStr := config.GetString("server.log_level")
+	level, _ := logrus.ParseLevel(levelStr)
+	if levelStr != "debug" {
 		gin.SetMode(gin.ReleaseMode)
 	}
+	log := logrus.New()
+	log.SetLevel(level)
 
 	router := gin.Default()
-	loadRoutes(router, env)
+	router.Use(setConfig(config))
+	loadRoutes(router, &Env{
+		DB: db,
+		Log: log,
+	})
 	return router
+}
+
+func setConfig(config *viper.Viper) gin.HandlerFunc {
+	rootKey := config.GetString("server.root_key")
+	if rootKey != "" {
+		return func(c *gin.Context) {
+			c.Set(RootKey, rootKey)
+			c.Next()
+		}
+	}
+	return func(c *gin.Context) {
+		c.Next()
+	}
 }
 
 func NewPass() string {
 	return uuid.New().String()
 }
 
-func (env *Env) HasPermission(userID, resourceID string) error {
+func (env *Env) HasPermission(c *gin.Context, userID, resourceID string) error {
 	if userID == resourceID {
 		return nil
 	}
+	if val, ok := c.Get(RootKey); ok && val != nil {
+		if val.(string) == userID {
+			return nil
+		}
+	}
+
 	return fmt.Errorf("Invalid permissions")
 }
 

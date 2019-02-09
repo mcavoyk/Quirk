@@ -41,7 +41,7 @@ func (db *DB) InsertPost(post *Post) (*PostInfo, error) {
 	if post.Parent != "" {
 		parentSplit := strings.Split(post.Parent, "/")
 		lastParent := parentSplit[len(parentSplit)-1]
-		parent, err := db.GetPost(lastParent, post.UserID)
+		parent, err := db.GetPostByUser(lastParent, post.UserID)
 		if err != nil {
 			return nil, errors.New("invalid post parent")
 		}
@@ -58,15 +58,27 @@ func (db *DB) InsertPost(post *Post) (*PostInfo, error) {
 	}
 
 	_ = db.InsertVote(&Vote{UserID: post.UserID, PostID: post.ID, Vote: Upvote})
-	return db.GetPost(post.ID, post.UserID)
+	return db.GetPostByUser(post.ID, post.UserID)
 }
 
-func (db *DB) GetPost(id string, user string) (*PostInfo, error) {
+func (db *DB) GetPost(id string) (*PostInfo, error) {
 	post := new(PostInfo)
-	err := db.Unsafe().Get(post, "SELECT * FROM post_view WHERE id=? AND vote_user_id=?", id, user)
+	err := db.Unsafe().Get(post, "SELECT * FROM post_view WHERE id=? LIMIT 1", id)
 	if err != nil {
 		db.log.Debugf("Get post failed: %s", err.Error())
 		return nil, err
+	}
+	post.Lat, post.Lon = location.ToDegrees(post.Lat), location.ToDegrees(post.Lon)
+	post.VoteState = 0
+	return post, nil
+}
+
+func (db *DB) GetPostByUser(id string, user string) (*PostInfo, error) {
+	post := new(PostInfo)
+	err := db.Unsafe().Get(post, "SELECT * FROM post_view WHERE id=? AND vote_user_id=?", id, user)
+	if err != nil {
+		db.log.Debugf("Get post by user failed: %s", err.Error())
+		return db.GetPost(id)
 	}
 	post.Lat, post.Lon = location.ToDegrees(post.Lat), location.ToDegrees(post.Lon)
 	return post, nil
@@ -81,7 +93,7 @@ func (db *DB) UpdatePost(post *Post, user string) (*PostInfo, error) {
 		//db.log.Debugf("Update post SQL: %s", sqlStmt)
 		return nil, err
 	}
-	return db.GetPost(post.ID, user)
+	return db.GetPostByUser(post.ID, user)
 }
 
 func (db *DB) DeletePost(id string) error {

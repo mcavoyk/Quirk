@@ -40,7 +40,7 @@ func (env *Env) CreatePost(c *gin.Context) {
 func (env *Env) GetPost(c *gin.Context) {
 	id := c.Param("id")
 
-	post, err := env.DB.GetPost(id, c.GetString(UserContext))
+	post, err := env.DB.GetPostByUser(id, c.GetString(UserContext))
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"status": "Page not found"})
 		return
@@ -55,13 +55,13 @@ func (env *Env) UpdatePost(c *gin.Context) {
 	if err := c.Bind(post); err != nil {
 		return
 	}
-	existingPost, err := env.DB.GetPost(id, userID)
+	existingPost, err := env.DB.GetPostByUser(id, userID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"status": "Page not found"})
 		return
 	}
 
-	if err := env.HasPermission(userID, existingPost.UserID); err != nil {
+	if err := env.HasPermission(c, userID, existingPost.UserID); err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"status": "Forbidden"})
 		return
 	}
@@ -80,13 +80,13 @@ func (env *Env) DeletePost(c *gin.Context) {
 	id := c.Param("id")
 	userID := c.GetString(UserContext)
 
-	post, err := env.DB.GetPost(id, userID)
+	post, err := env.DB.GetPostByUser(id, userID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"status": "Page not found"})
 		return
 	}
 
-	if err := env.HasPermission(userID, post.UserID); err != nil {
+	if err := env.HasPermission(c, userID, post.UserID); err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"status": "Forbidden"})
 		return
 	}
@@ -133,7 +133,7 @@ func (env *Env) GetPostChildren(c *gin.Context) {
 		return
 	}
 
-	parentPost, err := env.DB.GetPost(parentID, userID)
+	parentPost, err := env.DB.GetPostByUser(parentID, userID)
 	if err != nil {
 		env.Log.Debugf("ParentID: %s | userID: %s", parentID, userID)
 		c.JSON(http.StatusNotFound, gin.H{"status": "Page not found"})

@@ -85,37 +85,6 @@ func (env *Env) CreateUser(c *gin.Context) {
 	c.JSON(http.StatusCreated, user)
 }
 
-func (env *Env) UserVerify(c *gin.Context) {
-	sessionID := extractToken(c)
-	if sessionID == "" {
-		c.AbortWithStatus(http.StatusForbidden)
-		return
-	}
-	existingSession, err := env.DB.GetSession(sessionID)
-	if err != nil {
-		c.AbortWithStatus(http.StatusForbidden)
-		return
-	}
-
-	existingUser, err := env.DB.GetUserBySession(sessionID)
-	if err != nil {
-		c.AbortWithStatus(http.StatusForbidden)
-		return
-	}
-
-	// Extract and use coords if they are included and valid
-	coords, err := extractCoords(c)
-	if err == nil {
-		existingSession.Lat = coords.Lat
-		existingSession.Lon = coords.Lon
-	}
-	existingSession.IP = ip.Parse(c.Request)
-
-	env.DB.SessionUpdate(existingSession)
-	c.Set(UserContext, existingUser.ID)
-	c.Next()
-}
-
 func (env *Env) GetUser(c *gin.Context) {
 	id := c.Param("id")
 	user, err := env.DB.GetUser(id)
@@ -126,14 +95,11 @@ func (env *Env) GetUser(c *gin.Context) {
 		return
 	}
 
-	if user.ID != c.GetString(UserContext) {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"status": "Unauthorized",
-		})
+	if err := env.HasPermission(c, c.GetString(UserContext), user.ID); err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"status": "Forbidden"})
 		return
 	}
 
-	user.Password = ""
 	c.JSON(http.StatusOK, user)
 }
 
@@ -147,7 +113,7 @@ func (env *Env) DeleteUser(c *gin.Context) {
 	id := c.Param("id")
 	userID := c.GetString(UserContext)
 
-	if err := env.HasPermission(userID, id); err != nil {
+	if err := env.HasPermission(c, userID, id); err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"status": "Forbidden"})
 		return
 	}
@@ -202,6 +168,48 @@ func (env *Env) LoginUser(c *gin.Context) {
 			"status": "Unauthorized",
 		})
 	}
+}
+
+// UserVerify is auth middleware to check session token from Authorization header
+func (env *Env) UserVerify(c *gin.Context) {
+	sessionID := extractToken(c)
+	if sessionID == "" {
+		c.AbortWithStatus(http.StatusForbidden)
+		return
+	}
+
+	if val, ok := c.Get(RootKey); ok && val != nil {
+		if val.(string) == sessionID {
+			env.Log.Warnf("RootKey used from ip [%s] for [%s: %s]", ip.Parse(c.Request), c.Request.Method, c.Request.URL.Path)
+			c.Set(UserContext, sessionID)
+			c.Next()
+			return
+		}
+	}
+
+	existingSession, err := env.DB.GetSession(sessionID)
+	if err != nil {
+		c.AbortWithStatus(http.StatusForbidden)
+		return
+	}
+
+	existingUser, err := env.DB.GetUserBySession(sessionID)
+	if err != nil {
+		c.AbortWithStatus(http.StatusForbidden)
+		return
+	}
+
+	// Extract and use coords if they are included and valid
+	coords, err := extractCoords(c)
+	if err == nil {
+		existingSession.Lat = coords.Lat
+		existingSession.Lon = coords.Lon
+	}
+	existingSession.IP = ip.Parse(c.Request)
+
+	env.DB.SessionUpdate(existingSession)
+	c.Set(UserContext, existingUser.ID)
+	c.Next()
 }
 
 func extractToken(c *gin.Context) string {

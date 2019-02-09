@@ -1,10 +1,9 @@
 package config
 
 import (
-	"fmt"
-	"github.com/mcavoyk/quirk/api/models"
-	"github.com/spf13/viper"
 	"log"
+
+	"github.com/spf13/viper"
 )
 
 var Path string
@@ -22,15 +21,4 @@ func InitConfig(path string) (*viper.Viper, error) {
 	}
 	config.AutomaticEnv()
 	return config, nil
-}
-
-func InitDB(config *viper.Viper) (*models.DB, error) {
-	dbConnection := fmt.Sprintf("%s:%s@tcp(%s)/",
-		config.GetString("database.username"),
-		config.GetString("database.password"),
-		config.GetString("database.address"))
-
-	log.Printf("Attempting to connect to database [%s]\n", dbConnection)
-
-	return models.InitDB(dbConnection)
 }

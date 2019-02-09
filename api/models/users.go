@@ -49,17 +49,19 @@ func (db *DB) GetUser(id string) (*User, error) {
 		db.log.Debugf("Get user failed: %s", err.Error())
 		return nil, err
 	}
+	user.Password = ""
 	return user, nil
 }
 
 func (db *DB) GetUserByName(username string) (*User, error) {
 	user := new(User)
-	err := db.Get(user, "SELECT * FROM users WHERE username=?", username)
+	err := db.Get(user, "SELECT * FROM users_live WHERE username=?", username)
 	if err != nil {
 		db.log.Debugf("Get user failed: %s", err.Error())
 		return nil, err
 	}
 
+	user.Password = ""
 	return user, nil
 }
 
