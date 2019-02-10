@@ -103,11 +103,40 @@ func (env *Env) GetUser(c *gin.Context) {
 	c.JSON(http.StatusOK, user)
 }
 
-/*
-func (env *Env) UpdateUser(c *gin.Context) {
+func (env *Env) PatchUser(c *gin.Context) {
+	id := c.Param("id")
+	userID := c.GetString(UserContext)
 
+	if err := env.HasPermission(c, userID, id); err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"status": "Forbidden"})
+		return
+	}
+
+	user := new(User)
+	_ = c.ShouldBind(user)
+
+	// Password change not supported at this time
+	user.Password = ""
+
+	if id == "" {
+		id = userID
+	}
+
+	newUser, err := env.DB.UpdateUser(&models.User{
+		Default: models.Default{ID: id},
+		Username: user.Username,
+		DisplayName: user.DisplayName,
+		Password: user.Password,
+		Email: user.Password,
+	})
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"status": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, newUser)
 }
-*/
 
 func (env *Env) DeleteUser(c *gin.Context) {
 	id := c.Param("id")

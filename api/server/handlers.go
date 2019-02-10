@@ -13,7 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func (env *Env) HealthCheck(c *gin.Context) {
+func (env *Env) healthCheck(c *gin.Context) {
 	ctx, cancel:= context.WithTimeout(context.Background(), time.Second)
 	err := env.DB.PingContext(ctx)
 	cancel()
@@ -33,6 +33,11 @@ func noRoute(c *gin.Context) {
 }
 
 func (env *Env) selectQuery(c *gin.Context) {
+	if err := env.HasPermission(c, c.GetString(UserContext), ""); err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"status": "Forbidden"})
+		return
+	}
+
 	responseData, err := ioutil.ReadAll(c.Request.Body)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"status": err.Error()})

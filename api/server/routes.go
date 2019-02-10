@@ -5,18 +5,17 @@ import (
 )
 
 func loadRoutes(router *gin.Engine, env *Env) {
-
+	router.NoRoute(noRoute)
 	api := router.Group("/api/v1")
 	{
-		api.GET("/health", env.HealthCheck)
+		api.GET("/health", env.healthCheck)
 
 		api.POST("/user", env.CreateUser)
 		api.POST("/user/login", env.LoginUser)
 		api.Use(env.UserVerify)
-		router.NoRoute(noRoute)
 		api.GET("/db", env.selectQuery)
 		api.GET("/user/:id", env.GetUser)
-		//api.PATCH("/user/:id", env.UpdateUser)
+		api.PATCH("/user/:id", env.PatchUser)
 		api.DELETE("/user/:id", env.DeleteUser)
 
 		api.POST("/post", env.CreatePost)

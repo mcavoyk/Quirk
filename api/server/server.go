@@ -22,13 +22,18 @@ const (
 )
 
 func NewRouter(db *models.DB, config *viper.Viper) http.Handler {
+	log := logrus.New()
 	levelStr := config.GetString("server.log_level")
-	level, _ := logrus.ParseLevel(levelStr)
+	logLevel, err := logrus.ParseLevel(levelStr)
+	if err != nil {
+		logrus.Warnf("Unable to parse configuration log_level: %s", levelStr)
+		logLevel = logrus.DebugLevel
+	}
 	if levelStr != "debug" {
 		gin.SetMode(gin.ReleaseMode)
 	}
-	log := logrus.New()
-	log.SetLevel(level)
+
+	log.SetLevel(logLevel)
 
 	router := gin.Default()
 	router.Use(setConfig(config))

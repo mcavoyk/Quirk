@@ -1,7 +1,7 @@
 [server]
 port = ":5000"
 log_level = "debug"
-root_key = "foo"
+root_key = ""
 
 [database]
 address = "localhost:3306"

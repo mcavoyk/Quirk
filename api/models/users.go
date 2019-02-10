@@ -44,24 +44,22 @@ func (db *DB) InsertUser(user *User) (*User, error) {
 
 func (db *DB) GetUser(id string) (*User, error) {
 	user := new(User)
-	err := db.Unsafe().Get(user, "SELECT * FROM users_live WHERE id=?", id)
+	err := db.Unsafe().Get(user, "SELECT * FROM users WHERE id=?", id)
 	if err != nil {
 		db.log.Debugf("Get user failed: %s", err.Error())
 		return nil, err
 	}
-	user.Password = ""
 	return user, nil
 }
 
 func (db *DB) GetUserByName(username string) (*User, error) {
 	user := new(User)
-	err := db.Get(user, "SELECT * FROM users_live WHERE username=?", username)
+	err := db.Get(user, "SELECT * FROM users WHERE username=?", username)
 	if err != nil {
 		db.log.Debugf("Get user failed: %s", err.Error())
 		return nil, err
 	}
 
-	user.Password = ""
 	return user, nil
 }
 
@@ -105,6 +103,18 @@ func (db *DB) SessionUpdate(session *Session) {
 	if err != nil {
 		db.log.Errorf("Update session failed: %s", err.Error())
 	}
+}
+
+func (db *DB) UpdateUser(user *User) (*User, error) {
+	sqlStmt := "UPDATE users " + createSet(*user) + " WHERE id = ?"
+	db.log.Debugf("Update post SQL: %s", sqlStmt)
+	_, err := db.Exec(sqlStmt, user.ID)
+	if err != nil {
+		db.log.Debugf("Update user failed: %s", err.Error())
+		//db.log.Debugf("Update post SQL: %s", sqlStmt)
+		return nil, err
+	}
+	return db.GetUser(user.ID)
 }
 
 func (db *DB) DeleteUser(id string) error {

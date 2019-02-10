@@ -115,7 +115,7 @@ func (db *DB) PostsByDistance(lat, lon float64, userID string, page, pageSize in
 	maxLon := points[1].Lon
 
 	db.log.Debugf("minLat %f | minLon %f | maxLat %f | maxLon %f | lat %f | lon %f", minLat,  minLon, maxLat, maxLon, lat, lon)
-	err := db.Unsafe().Select(&posts, "SELECT * FROM post_view WHERE deleted_at IS NULL AND vote_user_id = ? AND "+
+	err := db.Read.Unsafe().Select(&posts, "SELECT * FROM post_view WHERE deleted_at IS NULL AND vote_user_id = ? AND "+
 		byDistance+" ORDER BY score DESC LIMIT ? OFFSET ?",
 		userID, minLat, maxLat, minLon, maxLon, lat, lat, lon, Distance/location.EarthRadius,
 		pageSize, (page - 1) * pageSize)
@@ -131,7 +131,7 @@ func (db *DB) PostsByDistance(lat, lon float64, userID string, page, pageSize in
 func (db *DB) PostsByParent(parent, user string, page, pageSize int) ([]PostInfo, error) {
 	posts := make([]PostInfo, 0)
 
-	err := db.Unsafe().Select(&posts,"SELECT * FROM post_view WHERE vote_user_id = ? AND " +
+	err := db.Read.Unsafe().Select(&posts,"SELECT * FROM post_view WHERE vote_user_id = ? AND " +
 		"parent LIKE CONCAT(?, '%') ORDER BY score DESC LIMIT ? OFFSET ?", user, parent, pageSize, (page - 1) * pageSize)
 
 	if err != nil {
