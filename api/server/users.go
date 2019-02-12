@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/mcavoyk/quirk/api/pkg/gfyid"
 
 	"github.com/mcavoyk/quirk/api/pkg/ip"
@@ -33,6 +35,7 @@ func (env *Env) CreateUser(c *gin.Context) {
 	newUser := new(User)
 	_ = c.ShouldBind(newUser)
 
+	logrus.Debugf("Got username: %s", newUser.Username)
 	if newUser.Username != "" {
 		_, err := env.DB.GetUserByName(newUser.Username)
 		if err == nil {
@@ -43,11 +46,11 @@ func (env *Env) CreateUser(c *gin.Context) {
 		}
 	} else {
 		newUser.Username = gfyid.RandomID()
-		env.Log.Infof("Random username: %s", newUser.Username)
+		logrus.Infof("Random username: %s", newUser.Username)
 		_, err := env.DB.GetUserByName(newUser.Username)
 		for err == nil {
 			newUser.Username = gfyid.RandomID()
-			env.Log.Infof("Random username: %s", newUser.Username)
+			logrus.Infof("Random username: %s", newUser.Username)
 			_, err = env.DB.GetUserByName(newUser.Username)
 		}
 	}
@@ -123,11 +126,11 @@ func (env *Env) PatchUser(c *gin.Context) {
 	}
 
 	newUser, err := env.DB.UpdateUser(&models.User{
-		Default: models.Default{ID: id},
-		Username: user.Username,
+		Default:     models.Default{ID: id},
+		Username:    user.Username,
 		DisplayName: user.DisplayName,
-		Password: user.Password,
-		Email: user.Password,
+		Password:    user.Password,
+		Email:       user.Password,
 	})
 
 	if err != nil {
@@ -154,7 +157,7 @@ func (env *Env) DeleteUser(c *gin.Context) {
 func (env *Env) LoginUser(c *gin.Context) {
 	newLogin := new(Login)
 	if err := c.ShouldBind(newLogin); err != nil {
-		env.Log.Debugf("Failed to bind to user struct: %s", err.Error())
+		logrus.Debugf("Failed to bind to user struct: %s", err.Error())
 		c.JSON(http.StatusBadRequest, gin.H{
 			"status": "Invalid or missing login fields",
 		})
@@ -163,7 +166,7 @@ func (env *Env) LoginUser(c *gin.Context) {
 
 	user, err := env.DB.GetUserByName(newLogin.Username)
 	if err != nil || user.DeletedAt != nil {
-		env.Log.Debugf("User %s not found on login", newLogin.Username)
+		logrus.Debugf("User %s not found on login", newLogin.Username)
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"status": "Unauthorized",
 		})
@@ -201,6 +204,7 @@ func (env *Env) LoginUser(c *gin.Context) {
 
 // UserVerify is auth middleware to check session token from Authorization header
 func (env *Env) UserVerify(c *gin.Context) {
+	start := time.Now()
 	sessionID := extractToken(c)
 	if sessionID == "" {
 		c.AbortWithStatus(http.StatusForbidden)
@@ -209,7 +213,7 @@ func (env *Env) UserVerify(c *gin.Context) {
 
 	if val, ok := c.Get(RootKey); ok && val != nil {
 		if val.(string) == sessionID {
-			env.Log.Warnf("RootKey used from ip [%s] for [%s: %s]", ip.Parse(c.Request), c.Request.Method, c.Request.URL.Path)
+			logrus.Warnf("RootKey used from ip [%s] for [%s: %s]", ip.Parse(c.Request), c.Request.Method, c.Request.URL.Path)
 			c.Set(UserContext, sessionID)
 			c.Next()
 			return
@@ -238,6 +242,7 @@ func (env *Env) UserVerify(c *gin.Context) {
 
 	env.DB.SessionUpdate(existingSession)
 	c.Set(UserContext, existingUser.ID)
+	logrus.Debugf("Total auth middleware: %f", time.Since(start).Seconds())
 	c.Next()
 }
 
@@ -253,7 +258,7 @@ func extractToken(c *gin.Context) string {
 func (env *Env) hashAndSalt(pwd string) string {
 	hash, err := bcrypt.GenerateFromPassword([]byte(pwd), bcrypt.DefaultCost)
 	if err != nil {
-		env.Log.Error("Failed to hash password")
+		logrus.Error("Failed to hash password")
 		return pwd
 	}
 	return string(hash)

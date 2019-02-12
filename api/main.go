@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -19,9 +20,6 @@ import (
 const DefaultConfig = "config.toml"
 
 func main() {
-	log := logrus.New()
-	//log.SetOutput(os.Stdout)
-
 	configPath := os.Getenv("CONFIG")
 	if configPath == "" {
 		configPath = DefaultConfig
@@ -37,7 +35,7 @@ func main() {
 		logrus.Warnf("Unable to parse configuration log_level: %s", levelStr)
 		logLevel = logrus.DebugLevel
 	}
-	log.SetLevel(logLevel)
+	logrus.SetLevel(logLevel)
 
 	db, err := models.InitDB(config.GetString("database.username"),
 		config.GetString("database.password"),
@@ -47,10 +45,9 @@ func main() {
 		logrus.Fatalf("Unable to setup database: %s", err.Error())
 	}
 	defer db.Close()
-	db.SetLogLevel(levelStr)
 
 	port := config.GetString("server.port")
-	log.Infof("Starting server on port %s", port)
+	logrus.Infof("Starting server on port %s", port)
 	handler := server.NewRouter(db, config)
 	srv := &http.Server{
 		Addr:         port,

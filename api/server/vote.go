@@ -2,16 +2,18 @@ package server
 
 import (
 	"fmt"
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	"github.com/go-sql-driver/mysql"
 	"github.com/mcavoyk/quirk/api/models"
-	"net/http"
+	"github.com/sirupsen/logrus"
 )
 
 func (env *Env) SubmitVote(c *gin.Context) {
 	vote := &models.Vote{}
 	if err := c.ShouldBind(vote); err != nil {
-		env.Log.Debugf("Submit vote error: %s", err.Error())
+		logrus.Debugf("Submit vote error: %s", err.Error())
 		c.JSON(http.StatusBadRequest, gin.H{
 			"status": "Missing or invalid field 'vote'",
 		})
@@ -38,4 +40,3 @@ func (env *Env) SubmitVote(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, http.StatusText(http.StatusOK))
 }
-

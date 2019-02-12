@@ -8,13 +8,13 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/mcavoyk/quirk/api/pkg/location"
-
 	"github.com/gin-gonic/gin"
+	"github.com/mcavoyk/quirk/api/pkg/location"
+	"github.com/sirupsen/logrus"
 )
 
 func (env *Env) healthCheck(c *gin.Context) {
-	ctx, cancel:= context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	err := env.DB.PingContext(ctx)
 	cancel()
 	if err != nil {
@@ -43,7 +43,7 @@ func (env *Env) selectQuery(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"status": err.Error()})
 		return
 	}
-	env.Log.Warnf("Executing read query: %s", string(responseData))
+	logrus.Warnf("Executing read query: %s", string(responseData))
 	rows, err := env.DB.Read.Query(string(responseData))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"status": err.Error()})
@@ -98,4 +98,3 @@ func extractCoords(c *gin.Context) (*location.Point, error) {
 	}
 	return &location.Point{Lat: lat, Lon: lon}, nil
 }
-

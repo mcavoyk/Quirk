@@ -1,6 +1,10 @@
 package models
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/sirupsen/logrus"
+)
 
 // Vote represents a user's vote on a post
 type Vote struct {
@@ -22,8 +26,8 @@ func (db *DB) InsertVote(vote *Vote) error {
 		sqlStmt := InsertValues(InsertVotes)
 		_, err := db.NamedExec(sqlStmt, vote)
 		if err != nil {
-			db.log.Debugf("Insert vote SQL: %s", sqlStmt)
-			db.log.Warnf("Insert vote failed: %s", err.Error())
+			logrus.Debugf("Insert vote SQL: %s", sqlStmt)
+			logrus.Warnf("Insert vote failed: %s", err.Error())
 		}
 		return err
 	} else {

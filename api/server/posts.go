@@ -1,8 +1,12 @@
 package server
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/gin-gonic/gin"
 	"github.com/mcavoyk/quirk/api/models"
@@ -10,16 +14,22 @@ import (
 )
 
 type Post struct {
-	Content    string  `json:"content" form:"content" binding:"required"`
+	Content    Content `json:"content" form:"content" binding:"required"`
 	AccessType string  `json:"access_type" form:"access_type" binding:"required"`
 	Lat        float64 `json:"lat" form:"lat" binding:"min=-90,max=90"`
 	Lon        float64 `json:"lon" form:"lon" binding:"min=-180,max=180"`
 }
 
+type Content struct {
+	Title string `json:"title" binding:"required"`
+}
+
 func (env *Env) CreatePost(c *gin.Context) {
 	parentID := c.Param("id")
-	givenPost := &Post{}
-	if err := c.Bind(givenPost); err != nil {
+	givenPost := new(Post)
+	if err := c.ShouldBind(givenPost); err != nil {
+		logrus.Debugf("Create posts binding error: %s", err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"status": "Invalid request"})
 		return
 	}
 
@@ -38,6 +48,7 @@ func (env *Env) CreatePost(c *gin.Context) {
 }
 
 func (env *Env) GetPost(c *gin.Context) {
+	start := time.Now()
 	id := c.Param("id")
 
 	post, err := env.DB.GetPostByUser(id, c.GetString(UserContext))
@@ -46,6 +57,7 @@ func (env *Env) GetPost(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, post)
+	logrus.Debugf("Total get post time: %f", time.Since(start).Seconds())
 }
 
 func (env *Env) UpdatePost(c *gin.Context) {
@@ -105,7 +117,7 @@ func (env *Env) SearchPosts(c *gin.Context) {
 
 	pageInfo := Results{}
 	if err := c.ShouldBind(&pageInfo); err != nil {
-		env.Log.Debugf("Search posts binding error: %s", err.Error())
+		logrus.Debugf("Search posts binding error: %s", err.Error())
 		c.JSON(http.StatusBadRequest, gin.H{"status": "Invalid fields for 'page' or 'per_page'"})
 		return
 	}
@@ -128,14 +140,14 @@ func (env *Env) GetPostChildren(c *gin.Context) {
 	userID := c.GetString(UserContext)
 
 	if err := c.ShouldBind(&pageInfo); err != nil {
-		env.Log.Debugf("Search posts binding error: %s", err.Error())
+		logrus.Debugf("Search posts binding error: %s", err.Error())
 		c.JSON(http.StatusBadRequest, gin.H{"status": "Invalid fields for 'page' or 'per_page'"})
 		return
 	}
 
 	parentPost, err := env.DB.GetPostByUser(parentID, userID)
 	if err != nil {
-		env.Log.Debugf("ParentID: %s | userID: %s", parentID, userID)
+		logrus.Debugf("ParentID: %s | userID: %s", parentID, userID)
 		c.JSON(http.StatusNotFound, gin.H{"status": "Page not found"})
 		return
 	}
@@ -153,7 +165,11 @@ func (env *Env) GetPostChildren(c *gin.Context) {
 }
 
 func convertPost(src *Post, dst *models.Post) *models.Post {
-	dst.Content = src.Content
+	bytes, err := json.Marshal(src.Content)
+	if err != nil {
+		fmt.Printf("Marshal error: %s\n", err.Error())
+	}
+	dst.Content = string(bytes)
 	dst.AccessType = src.AccessType
 	dst.Lat = location.ToRadians(src.Lat)
 	dst.Lon = location.ToRadians(src.Lon)

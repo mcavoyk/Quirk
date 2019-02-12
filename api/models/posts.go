@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/mcavoyk/quirk/api/pkg/location"
 )
 
@@ -52,8 +54,8 @@ func (db *DB) InsertPost(post *Post) (*PostInfo, error) {
 	sqlStmt := InsertValues(InsertPost)
 	_, err := db.NamedExec(sqlStmt, post)
 	if err != nil {
-		db.log.Debugf("Insert post SQL: %s", sqlStmt)
-		db.log.Warnf("Insert post failed: %s", err.Error())
+		logrus.Debugf("Insert post SQL: %s", sqlStmt)
+		logrus.Warnf("Insert post failed: %s", err.Error())
 		return nil, err
 	}
 
@@ -65,7 +67,7 @@ func (db *DB) GetPost(id string) (*PostInfo, error) {
 	post := new(PostInfo)
 	err := db.Unsafe().Get(post, "SELECT * FROM post_view WHERE id=? LIMIT 1", id)
 	if err != nil {
-		db.log.Debugf("Get post failed: %s", err.Error())
+		logrus.Debugf("Get post failed: %s", err.Error())
 		return nil, err
 	}
 	post.Lat, post.Lon = location.ToDegrees(post.Lat), location.ToDegrees(post.Lon)
@@ -77,7 +79,7 @@ func (db *DB) GetPostByUser(id string, user string) (*PostInfo, error) {
 	post := new(PostInfo)
 	err := db.Unsafe().Get(post, "SELECT * FROM post_view WHERE id=? AND vote_user_id=?", id, user)
 	if err != nil {
-		db.log.Debugf("Get post by user failed: %s", err.Error())
+		logrus.Debugf("Get post by user failed: %s", err.Error())
 		return db.GetPost(id)
 	}
 	post.Lat, post.Lon = location.ToDegrees(post.Lat), location.ToDegrees(post.Lon)
@@ -86,11 +88,11 @@ func (db *DB) GetPostByUser(id string, user string) (*PostInfo, error) {
 
 func (db *DB) UpdatePost(post *Post, user string) (*PostInfo, error) {
 	sqlStmt := "UPDATE posts " + createSet(*post) + " WHERE id = ?"
-	db.log.Debugf("Update post SQL: %s", sqlStmt)
+	logrus.Debugf("Update post SQL: %s", sqlStmt)
 	_, err := db.Exec(sqlStmt, post.ID)
 	if err != nil {
-		db.log.Debugf("Update post failed: %s", err.Error())
-		//db.log.Debugf("Update post SQL: %s", sqlStmt)
+		logrus.Debugf("Update post failed: %s", err.Error())
+		//logrus.Debugf("Update post SQL: %s", sqlStmt)
 		return nil, err
 	}
 	return db.GetPostByUser(post.ID, user)
@@ -99,7 +101,7 @@ func (db *DB) UpdatePost(post *Post, user string) (*PostInfo, error) {
 func (db *DB) DeletePost(id string) error {
 	_, err := db.Exec("UPDATE posts SET deleted_at = NOW() WHERE id=?", id)
 	if err != nil {
-		db.log.Debugf("Delete post failed: %s", err.Error())
+		logrus.Debugf("Delete post failed: %s", err.Error())
 	}
 	return err
 }
@@ -114,14 +116,14 @@ func (db *DB) PostsByDistance(lat, lon float64, userID string, page, pageSize in
 	maxLat := points[1].Lat
 	maxLon := points[1].Lon
 
-	db.log.Debugf("minLat %f | minLon %f | maxLat %f | maxLon %f | lat %f | lon %f", minLat,  minLon, maxLat, maxLon, lat, lon)
+	logrus.Debugf("minLat %f | minLon %f | maxLat %f | maxLon %f | lat %f | lon %f", minLat, minLon, maxLat, maxLon, lat, lon)
 	err := db.Read.Unsafe().Select(&posts, "SELECT * FROM post_view WHERE deleted_at IS NULL AND vote_user_id = ? AND "+
 		byDistance+" ORDER BY score DESC LIMIT ? OFFSET ?",
 		userID, minLat, maxLat, minLon, maxLon, lat, lat, lon, Distance/location.EarthRadius,
-		pageSize, (page - 1) * pageSize)
+		pageSize, (page-1)*pageSize)
 
 	if err != nil {
-		db.log.Errorf("Select posts by distance error: %s", err.Error())
+		logrus.Errorf("Select posts by distance error: %s", err.Error())
 		return nil, err
 	}
 
@@ -131,11 +133,11 @@ func (db *DB) PostsByDistance(lat, lon float64, userID string, page, pageSize in
 func (db *DB) PostsByParent(parent, user string, page, pageSize int) ([]PostInfo, error) {
 	posts := make([]PostInfo, 0)
 
-	err := db.Read.Unsafe().Select(&posts,"SELECT * FROM post_view WHERE vote_user_id = ? AND " +
-		"parent LIKE CONCAT(?, '%') ORDER BY score DESC LIMIT ? OFFSET ?", user, parent, pageSize, (page - 1) * pageSize)
+	err := db.Read.Unsafe().Select(&posts, "SELECT * FROM post_view WHERE vote_user_id = ? AND "+
+		"parent LIKE CONCAT(?, '%') ORDER BY score DESC LIMIT ? OFFSET ?", user, parent, pageSize, (page-1)*pageSize)
 
 	if err != nil {
-		db.log.Errorf("Select posts by parent error: %s", err.Error())
+		logrus.Errorf("Select posts by parent error: %s", err.Error())
 		return nil, err
 	}
 

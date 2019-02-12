@@ -3,22 +3,33 @@ package models
 import (
 	"database/sql/driver"
 	"fmt"
-	"github.com/jmoiron/sqlx/reflectx"
 	"strings"
 	"time"
 
-	"github.com/jmoiron/sqlx"
-	"github.com/sirupsen/logrus"
+	"github.com/jmoiron/sqlx/reflectx"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/jmoiron/sqlx"
 	"github.com/segmentio/ksuid"
 )
 
 type DB struct {
 	*sqlx.DB
 	Read *sqlx.DB
-	log *logrus.Logger
 }
+
+type Store interface {
+	InsertUser(user *User) (*User, error)
+	GetUser(id string) (*User, error)
+	GetUserByName(username string) (*User, error)
+	InsertSession(session *Session) (*Session, error)
+	GetSession(id string) (*Session, error)
+	GetUserBySession(sessionID string) (*User, error)
+	UpdateUser(user *User) (*User, error)
+	DeleteUser(id string) error
+}
+
+var _ Store = (*DB)(nil)
 
 type Default struct {
 	ID        string    `json:"id"`
@@ -26,7 +37,6 @@ type Default struct {
 	UpdatedAt time.Time `json:"updated_at"`
 	DeletedAt *NullTime `json:"deleted_at,omitempty"`
 }
-
 
 // InitDB
 func InitDB(user, pass, address string) (*DB, error) {
@@ -53,7 +63,7 @@ func InitDB(user, pass, address string) (*DB, error) {
 		return nil, err
 	}
 
-	return &DB{DB: db, log: logrus.New(), Read: read}, nil
+	return &DB{DB: db, Read: read}, nil
 }
 
 func connect(user, pass, address, schema string) (*sqlx.DB, error) {
@@ -72,12 +82,6 @@ func connect(user, pass, address, schema string) (*sqlx.DB, error) {
 
 func NewGUID() string {
 	return ksuid.New().String()
-}
-
-func (db *DB) SetLogLevel(logLevel string) {
-	if level, err := logrus.ParseLevel(logLevel); err == nil {
-		db.log.SetLevel(level)
-	}
 }
 
 func InsertValues(insert string) string {
@@ -267,11 +271,10 @@ func schema(pass string) []string {
 	JOIN children_view c ON p.id = c.id
 	WHERE u.deleted_at IS NULL`,
 
-	fmt.Sprintf("CREATE OR REPLACE USER writer IDENTIFIED BY '%s'", pass),
-	`GRANT SELECT, INSERT, UPDATE, DELETE ON *.*  to writer`,
+		fmt.Sprintf("CREATE OR REPLACE USER writer IDENTIFIED BY '%s'", pass),
+		`GRANT SELECT, INSERT, UPDATE, DELETE ON *.*  to writer`,
 
-	fmt.Sprintf("CREATE OR REPLACE USER reader IDENTIFIED BY '%s'", pass),
-	`GRANT SELECT ON *.*  to reader`,
+		fmt.Sprintf("CREATE OR REPLACE USER reader IDENTIFIED BY '%s'", pass),
+		`GRANT SELECT ON *.*  to reader`,
 	}
 }
-

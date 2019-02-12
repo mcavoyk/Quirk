@@ -1,8 +1,9 @@
 package models
 
 import (
-	"fmt"
 	"time"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/mcavoyk/quirk/api/pkg/location"
 )
@@ -32,11 +33,12 @@ const insertSession = "INSERT INTO sessions (id, user_id, expiry, ip_address, us
 
 func (db *DB) InsertUser(user *User) (*User, error) {
 	user.ID = NewGUID()
+	logrus.Infof("Creating user: %s", user.ID)
 	sqlStmt := InsertValues(insertUser)
 	_, err := db.NamedExec(sqlStmt, user)
 	if err != nil {
-		db.log.Debugf("Insert user SQL: %s", sqlStmt)
-		db.log.Warnf("Insert user failed: %s", err.Error())
+		logrus.Debugf("Insert user SQL: %s", sqlStmt)
+		logrus.Warnf("Insert user failed: %s", err.Error())
 		return nil, err
 	}
 	return db.GetUser(user.ID)
@@ -46,7 +48,7 @@ func (db *DB) GetUser(id string) (*User, error) {
 	user := new(User)
 	err := db.Unsafe().Get(user, "SELECT * FROM users WHERE id=?", id)
 	if err != nil {
-		db.log.Debugf("Get user failed: %s", err.Error())
+		logrus.Debugf("Get user failed: %s", err.Error())
 		return nil, err
 	}
 	return user, nil
@@ -56,7 +58,7 @@ func (db *DB) GetUserByName(username string) (*User, error) {
 	user := new(User)
 	err := db.Get(user, "SELECT * FROM users WHERE username=?", username)
 	if err != nil {
-		db.log.Debugf("Get user failed: %s", err.Error())
+		logrus.Debugf("Get user failed: %s", err.Error())
 		return nil, err
 	}
 
@@ -69,8 +71,8 @@ func (db *DB) InsertSession(session *Session) (*Session, error) {
 	sqlStmt := InsertValues(insertSession)
 	_, err := db.NamedExec(sqlStmt, session)
 	if err != nil {
-		db.log.Debugf("Insert session SQL: %s", sqlStmt)
-		db.log.Warnf("Insert session failed: %s", err.Error())
+		logrus.Debugf("Insert session SQL: %s", sqlStmt)
+		logrus.Warnf("Insert session failed: %s", err.Error())
 		return nil, err
 	}
 	return db.GetSession(session.ID)
@@ -80,7 +82,7 @@ func (db *DB) GetSession(id string) (*Session, error) {
 	session := new(Session)
 	err := db.Get(session, "SELECT * FROM sessions WHERE id=?", id)
 	if err != nil {
-		db.log.Debugf("Get session failed: %s", err.Error())
+		logrus.Debugf("Get session failed: %s", err.Error())
 		return nil, err
 	}
 	return session, nil
@@ -90,7 +92,7 @@ func (db *DB) GetUserBySession(sessionID string) (*User, error) {
 	user := new(User)
 	err := db.Unsafe().Get(user, "SELECT * FROM user_sessions WHERE session_id=?", sessionID)
 	if err != nil {
-		db.log.Errorf("Get user by session failed: %s", err.Error())
+		logrus.Errorf("Get user by session failed: %s", err.Error())
 		return nil, err
 	}
 
@@ -101,17 +103,17 @@ func (db *DB) SessionUpdate(session *Session) {
 	session.Lat, session.Lon = location.ToRadians(session.Lat), location.ToRadians(session.Lon)
 	_, err := db.NamedExec("UPDATE sessions SET ip_address = :ip_address, lat = :lat, lon = :lon WHERE id = :id", session)
 	if err != nil {
-		db.log.Errorf("Update session failed: %s", err.Error())
+		logrus.Errorf("Update session failed: %s", err.Error())
 	}
 }
 
 func (db *DB) UpdateUser(user *User) (*User, error) {
 	sqlStmt := "UPDATE users " + createSet(*user) + " WHERE id = ?"
-	db.log.Debugf("Update post SQL: %s", sqlStmt)
+	logrus.Debugf("Update post SQL: %s", sqlStmt)
 	_, err := db.Exec(sqlStmt, user.ID)
 	if err != nil {
-		db.log.Debugf("Update user failed: %s", err.Error())
-		//db.log.Debugf("Update post SQL: %s", sqlStmt)
+		logrus.Debugf("Update user failed: %s", err.Error())
+		//logrus.Debugf("Update post SQL: %s", sqlStmt)
 		return nil, err
 	}
 	return db.GetUser(user.ID)
@@ -121,17 +123,18 @@ func (db *DB) DeleteUser(id string) error {
 	var returnedErr error
 	_, err := db.Exec("UPDATE users SET deleted_at = NOW() WHERE id = ?", id)
 	if err != nil {
-		db.log.Errorf("Delete user failed: %s", err.Error())
+		logrus.Errorf("Delete user failed: %s", err.Error())
 		returnedErr = err
 	}
 	_, err = db.Exec("DELETE FROM sessions WHERE user_id = ?", id)
 	if err != nil {
-		db.log.Errorf("Delete sessions failed: %s", err.Error())
+		logrus.Errorf("Delete sessions failed: %s", err.Error())
 		returnedErr = err
 	}
 	return returnedErr
 }
 
+/*
 func (db *DB) UsersByDistance(lat, lon float64) int {
 	points := location.BoundingPoints(&location.Point{Lat: lat, Lon: lon}, Distance)
 	minLat := points[0].Lat
@@ -151,3 +154,4 @@ func (db *DB) UsersByDistance(lat, lon float64) int {
 	}
 	return count
 }
+*/
