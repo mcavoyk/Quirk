@@ -37,7 +37,7 @@ func (env *Env) CreatePost(c *gin.Context) {
 	newPost.UserID = c.GetString(UserContext)
 	newPost.Parent = parentID
 
-	post, err := env.DB.InsertPost(newPost)
+	post, err := env.db.InsertPost(newPost)
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"status": err.Error()})
@@ -51,7 +51,7 @@ func (env *Env) GetPost(c *gin.Context) {
 	start := time.Now()
 	id := c.Param("id")
 
-	post, err := env.DB.GetPostByUser(id, c.GetString(UserContext))
+	post, err := env.db.GetPostByUser(id, c.GetString(UserContext))
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"status": "Page not found"})
 		return
@@ -67,7 +67,7 @@ func (env *Env) UpdatePost(c *gin.Context) {
 	if err := c.Bind(post); err != nil {
 		return
 	}
-	existingPost, err := env.DB.GetPostByUser(id, userID)
+	existingPost, err := env.db.GetPostByUser(id, userID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"status": "Page not found"})
 		return
@@ -80,7 +80,7 @@ func (env *Env) UpdatePost(c *gin.Context) {
 
 	newPost := convertPost(post, &models.Post{})
 	newPost.ID = id
-	returnedPost, err := env.DB.UpdatePost(newPost, userID)
+	returnedPost, err := env.db.UpdatePost(newPost, userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"status": err.Error()})
 		return
@@ -92,7 +92,7 @@ func (env *Env) DeletePost(c *gin.Context) {
 	id := c.Param("id")
 	userID := c.GetString(UserContext)
 
-	post, err := env.DB.GetPostByUser(id, userID)
+	post, err := env.db.GetPostByUser(id, userID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"status": "Page not found"})
 		return
@@ -103,7 +103,7 @@ func (env *Env) DeletePost(c *gin.Context) {
 		return
 	}
 
-	_ = env.DB.DeletePost(id)
+	_ = env.db.DeletePost(id)
 	c.Status(http.StatusNoContent)
 }
 
@@ -122,7 +122,7 @@ func (env *Env) SearchPosts(c *gin.Context) {
 		return
 	}
 
-	posts, err := env.DB.PostsByDistance(coords.Lat, coords.Lon, c.GetString(UserContext), pageInfo.Page, pageInfo.PerPage)
+	posts, err := env.db.PostsByDistance(coords.Lat, coords.Lon, c.GetString(UserContext), pageInfo.Page, pageInfo.PerPage)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"status": err.Error()})
@@ -145,14 +145,14 @@ func (env *Env) GetPostChildren(c *gin.Context) {
 		return
 	}
 
-	parentPost, err := env.DB.GetPostByUser(parentID, userID)
+	parentPost, err := env.db.GetPostByUser(parentID, userID)
 	if err != nil {
 		logrus.Debugf("ParentID: %s | userID: %s", parentID, userID)
 		c.JSON(http.StatusNotFound, gin.H{"status": "Page not found"})
 		return
 	}
 
-	posts, err := env.DB.PostsByParent(fmt.Sprintf("%s/%s", parentPost.Parent, parentPost.ID), userID, pageInfo.Page, pageInfo.PerPage)
+	posts, err := env.db.PostsByParent(fmt.Sprintf("%s/%s", parentPost.Parent, parentPost.ID), userID, pageInfo.Page, pageInfo.PerPage)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"status": err.Error()})

@@ -31,32 +31,50 @@ type Login struct {
 	Lon      float64 `json:"lon" form:"lon" binding:"min=-180,max=180"`
 }
 
+func randomName() string {
+	name := gfyid.RandomID()
+	logrus.Infof("Random name: %s", name)
+	return name
+}
+
+func marshalUser(user *User) *models.User {
+	if user.DisplayName == "" {
+		user.DisplayName = user.Username
+	}
+	newUser := &models.User{
+		Username: user.Username,
+		DisplayName: user.DisplayName,
+		Email: user.Email,
+		Password: hashSalt(user.Password),
+	}
+	newUser.ID = models.NewGUID()
+	return newUser
+}
+
 func (env *Env) CreateUser(c *gin.Context) {
 	newUser := new(User)
 	_ = c.ShouldBind(newUser)
 
 	logrus.Debugf("Got username: %s", newUser.Username)
-	if newUser.Username != "" {
-		_, err := env.DB.GetUserByName(newUser.Username)
-		if err == nil {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"status": "Username already exists",
-			})
-			return
-		}
-	} else {
-		newUser.Username = gfyid.RandomID()
-		logrus.Infof("Random username: %s", newUser.Username)
-		_, err := env.DB.GetUserByName(newUser.Username)
-		for err == nil {
-			newUser.Username = gfyid.RandomID()
-			logrus.Infof("Random username: %s", newUser.Username)
-			_, err = env.DB.GetUserByName(newUser.Username)
-		}
+	randomUser := false
+	if newUser.Username == "" {
+		randomUser = true
+		newUser.Username = randomName()
 	}
 
-	if newUser.DisplayName == "" {
-		newUser.DisplayName = newUser.Username
+	result := make([]models.User, 0)
+	err := env.db.Read(&result, models.SelectUserByName, newUser.Username)
+	logrus.Debugf("Found %d users", len(result))
+	if err == nil {
+		if randomUser {
+			for err == nil {
+				newUser.Username = randomName()
+				err = env.db.Read(&models.User{}, models.SelectUserByName, newUser.Username)
+			}
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"status": "Username already exists"})
+			return
+		}
 	}
 
 	randomPassword := false
@@ -65,32 +83,30 @@ func (env *Env) CreateUser(c *gin.Context) {
 		newUser.Password = NewPass()
 	}
 
-	user, err := env.DB.InsertUser(&models.User{
-		DisplayName: newUser.DisplayName,
-		Password:    env.hashAndSalt(newUser.Password),
-		Email:       newUser.Email,
-		Username:    newUser.Username,
-	})
-
+	err = env.db.Write(models.InsertValues(models.InsertUser), marshalUser(newUser))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"status": err.Error(),
-		})
+		logrus.Errorf("Received Write Error: %s", err.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{"status": err.Error()})
 		return
 	}
 
+	err = env.db.Read(&result, models.SelectUserByName, newUser.Username)
+	if err != nil || len(result) != 1 {
+		logrus.Errorf("Received Read Error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"status": "internal server error"})
+		return
+	}
+	user := result[0]
+	user.Password = ""
 	if randomPassword {
 		user.Password = newUser.Password
-	} else {
-		user.Password = ""
 	}
-
 	c.JSON(http.StatusCreated, user)
 }
 
 func (env *Env) GetUser(c *gin.Context) {
 	id := c.Param("id")
-	user, err := env.DB.GetUser(id)
+	user, err := env.db.GetUser(id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"status": "Page not found",
@@ -125,7 +141,7 @@ func (env *Env) PatchUser(c *gin.Context) {
 		id = userID
 	}
 
-	newUser, err := env.DB.UpdateUser(&models.User{
+	newUser, err := env.db.UpdateUser(&models.User{
 		Default:     models.Default{ID: id},
 		Username:    user.Username,
 		DisplayName: user.DisplayName,
@@ -150,7 +166,7 @@ func (env *Env) DeleteUser(c *gin.Context) {
 		return
 	}
 
-	_ = env.DB.DeleteUser(id)
+	_ = env.db.DeleteUser(id)
 	c.Status(http.StatusNoContent)
 }
 
@@ -164,7 +180,7 @@ func (env *Env) LoginUser(c *gin.Context) {
 		return
 	}
 
-	user, err := env.DB.GetUserByName(newLogin.Username)
+	user, err := env.db.GetUserByName(newLogin.Username)
 	if err != nil || user.DeletedAt != nil {
 		logrus.Debugf("User %s not found on login", newLogin.Username)
 		c.JSON(http.StatusUnauthorized, gin.H{
@@ -176,7 +192,7 @@ func (env *Env) LoginUser(c *gin.Context) {
 	validPass := comparePasswords(user.Password, newLogin.Password)
 	if validPass {
 		expiry := time.Now().Add(14 * 24 * time.Hour)
-		session, err := env.DB.InsertSession(&models.Session{
+		session, err := env.db.InsertSession(&models.Session{
 			UserID:    user.ID,
 			Expiry:    expiry,
 			Lat:       newLogin.Lat,
@@ -220,13 +236,13 @@ func (env *Env) UserVerify(c *gin.Context) {
 		}
 	}
 
-	existingSession, err := env.DB.GetSession(sessionID)
+	existingSession, err := env.db.GetSession(sessionID)
 	if err != nil {
 		c.AbortWithStatus(http.StatusForbidden)
 		return
 	}
 
-	existingUser, err := env.DB.GetUserBySession(sessionID)
+	existingUser, err := env.db.GetUserBySession(sessionID)
 	if err != nil {
 		c.AbortWithStatus(http.StatusForbidden)
 		return
@@ -240,7 +256,7 @@ func (env *Env) UserVerify(c *gin.Context) {
 	}
 	existingSession.IP = ip.Parse(c.Request)
 
-	env.DB.SessionUpdate(existingSession)
+	env.db.UpdateSession(existingSession)
 	c.Set(UserContext, existingUser.ID)
 	logrus.Debugf("Total auth middleware: %f", time.Since(start).Seconds())
 	c.Next()
@@ -255,11 +271,11 @@ func extractToken(c *gin.Context) string {
 	return headerSplit[1]
 }
 
-func (env *Env) hashAndSalt(pwd string) string {
+func hashSalt(pwd string) string {
 	hash, err := bcrypt.GenerateFromPassword([]byte(pwd), bcrypt.DefaultCost)
 	if err != nil {
 		logrus.Error("Failed to hash password")
-		return pwd
+		panic("Failed to hash password")
 	}
 	return string(hash)
 }

@@ -1,6 +1,7 @@
 package models
 
 import (
+	"database/sql"
 	"database/sql/driver"
 	"fmt"
 	"strings"
@@ -15,10 +16,16 @@ import (
 
 type DB struct {
 	*sqlx.DB
-	Read *sqlx.DB
+	//
+	write *sqlx.DB
+	read  *sqlx.DB
 }
 
 type Store interface {
+	Exec(sql string, args ...interface{}) (sql.Result, error)
+	Write(sql string, args interface{}) error
+	Read(out interface{}, sql string, args ...interface{}) error
+	//
 	InsertUser(user *User) (*User, error)
 	GetUser(id string) (*User, error)
 	GetUserByName(username string) (*User, error)
@@ -26,7 +33,16 @@ type Store interface {
 	GetSession(id string) (*Session, error)
 	GetUserBySession(sessionID string) (*User, error)
 	UpdateUser(user *User) (*User, error)
+	UpdateSession(session *Session)
 	DeleteUser(id string) error
+	InsertPost(post *Post) (*PostInfo, error)
+	GetPost(id string) (*PostInfo, error)
+	GetPostByUser(id string, user string) (*PostInfo, error)
+	UpdatePost(post *Post, user string) (*PostInfo, error)
+	DeletePost(id string) error
+	PostsByDistance(lat, lon float64, userID string, page, pageSize int) ([]PostInfo, error)
+	PostsByParent(parent, user string, page, pageSize int) ([]PostInfo, error)
+	InsertVote(vote *Vote) error
 }
 
 var _ Store = (*DB)(nil)
@@ -63,7 +79,7 @@ func InitDB(user, pass, address string) (*DB, error) {
 		return nil, err
 	}
 
-	return &DB{DB: db, Read: read}, nil
+	return &DB{DB: db, read: read, write: db}, nil
 }
 
 func connect(user, pass, address, schema string) (*sqlx.DB, error) {
@@ -84,32 +100,13 @@ func NewGUID() string {
 	return ksuid.New().String()
 }
 
-func InsertValues(insert string) string {
-	start := strings.Split(insert, "(")
-	if len(start) == 1 {
-		return insert
-	}
-	start[1] = strings.Join(start[1:], "(")
+func (db *DB) Write(sql  string, args interface{}) error {
+	_, err := db.write.NamedExec(sql, args)
+	return err
+}
 
-	end := strings.Split(start[1], ")")
-	endStmt := ""
-	if len(end) > 1 {
-		endStmt = strings.Join(end[1:], ")")
-	}
-
-	columns := end[0]
-	columnSplit := strings.Split(columns, ",")
-	namedValues := ""
-	for i, column := range columnSplit {
-		column = strings.TrimSpace(column)
-		if i != 0 {
-			namedValues += ", "
-		}
-		namedValues += fmt.Sprintf(":%s", column)
-	}
-
-	return fmt.Sprintf("%s(%s) VALUES (%s)%s", start[0], end[0], namedValues, endStmt)
-
+func (db *DB) Read(out interface{}, sql string, args ...interface{}) error {
+	return db.read.Select(out, sql, args...)
 }
 
 // NullTime represents a time.Time that may be null. NullTime implements the

@@ -2,45 +2,33 @@ package server
 
 import (
 	"fmt"
-	"github.com/spf13/viper"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/mcavoyk/quirk/api/models"
-	"github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 )
 
 type Env struct {
-	DB  *models.DB
-	Log *logrus.Logger
+	db models.Store
 }
 
 const (
+	ApiV1 = "/api/v1"
 	UserContext = "User"
-	RootKey = "RootKey"
+	RootKey     = "RootKey"
 )
 
-func NewRouter(db *models.DB, config *viper.Viper) http.Handler {
-	log := logrus.New()
+func NewRouter(db models.Store, config *viper.Viper) http.Handler {
 	levelStr := config.GetString("server.log_level")
-	logLevel, err := logrus.ParseLevel(levelStr)
-	if err != nil {
-		logrus.Warnf("Unable to parse configuration log_level: %s", levelStr)
-		logLevel = logrus.DebugLevel
-	}
 	if levelStr != "debug" {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
-	log.SetLevel(logLevel)
-
 	router := gin.Default()
 	router.Use(setConfig(config))
-	loadRoutes(router, &Env{
-		DB: db,
-		Log: log,
-	})
+	loadRoutes(router, &Env{db: db})
 	return router
 }
 
@@ -75,8 +63,8 @@ func (env *Env) HasPermission(c *gin.Context, userID, resourceID string) error {
 }
 
 type Results struct {
-	Page    int `json:"page" form:"page,default=1" binding:"min=1"`
-	PerPage int `json:"per_page" form:"per_page,default=25" binding:"min=1"`
-	Count   int `json:"count"`
+	Page    int         `json:"page" form:"page,default=1" binding:"min=1"`
+	PerPage int         `json:"per_page" form:"per_page,default=25" binding:"min=1"`
+	Count   int         `json:"count"`
 	Results interface{} `json:"results"`
 }

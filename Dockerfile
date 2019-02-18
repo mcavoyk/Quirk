@@ -1,5 +1,5 @@
 FROM scratch
-ADD bin/main ./
+ADD bin/quirk ./
 ADD api/config.toml ./
 EXPOSE 5005
-ENTRYPOINT ["/main"]
+ENTRYPOINT ["/quirk"]

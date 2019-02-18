@@ -65,6 +65,7 @@ debug.test
 # Ignore OSX indexing
 .DS_Store
 
+api/vendor
 /vendor/**/*.py
 /vendor/**/*.xml
 /vendor/**/*.yml

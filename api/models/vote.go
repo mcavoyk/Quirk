@@ -34,29 +34,3 @@ func (db *DB) InsertVote(vote *Vote) error {
 		return fmt.Errorf("Invalid vote state '%d'", vote.Vote)
 	}
 }
-
-func (db *DB) GetVotesByUser(user string) []Vote {
-	votes := make([]Vote, 0)
-	return votes
-	/*
-		rows, err := db.Table("votes").Where("User = ?", user).Rows()
-		if err != nil {
-			fmt.Printf("SQL Error: %s\n", err.Error())
-			return nil
-		}
-
-		defer rows.Close()
-
-
-		for true {
-			if !rows.Next() {
-				break
-			}
-
-			newVote := Vote{}
-			_ = db.ScanRows(rows, &newVote)
-			votes = append(votes, newVote)
-		}
-		return votes
-	*/
-}

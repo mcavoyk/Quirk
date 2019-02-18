@@ -6,14 +6,14 @@ import (
 
 func loadRoutes(router *gin.Engine, env *Env) {
 	router.NoRoute(noRoute)
-	api := router.Group("/api/v1")
+	api := router.Group(ApiV1)
 	{
-		api.GET("/health", env.healthCheck)
+		//api.GET("/health", env.healthCheck)
 
 		api.POST("/user", env.CreateUser)
 		api.POST("/user/login", env.LoginUser)
 		api.Use(env.UserVerify)
-		api.GET("/db", env.selectQuery)
+		//api.GET("/db", env.selectQuery)
 		api.GET("/user/:id", env.GetUser)
 		api.PATCH("/user/:id", env.PatchUser)
 		api.DELETE("/user/:id", env.DeleteUser)

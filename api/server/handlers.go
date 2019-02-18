@@ -1,21 +1,18 @@
 package server
 
 import (
-	"context"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/mcavoyk/quirk/api/pkg/location"
-	"github.com/sirupsen/logrus"
 )
 
+/*
 func (env *Env) healthCheck(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	err := env.DB.PingContext(ctx)
+	err := env.db.PingContext(ctx)
 	cancel()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -25,13 +22,14 @@ func (env *Env) healthCheck(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"status": "healthy"})
 }
-
+*/
 func noRoute(c *gin.Context) {
 	c.JSON(http.StatusNotFound, gin.H{
 		"status": "Page not found",
 	})
 }
 
+/*
 func (env *Env) selectQuery(c *gin.Context) {
 	if err := env.HasPermission(c, c.GetString(UserContext), ""); err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"status": "Forbidden"})
@@ -44,7 +42,7 @@ func (env *Env) selectQuery(c *gin.Context) {
 		return
 	}
 	logrus.Warnf("Executing read query: %s", string(responseData))
-	rows, err := env.DB.Read.Query(string(responseData))
+	rows, err := env.db.Read.Query(string(responseData))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"status": err.Error()})
 		return
@@ -86,7 +84,7 @@ func (env *Env) selectQuery(c *gin.Context) {
 
 	c.JSON(http.StatusOK, allResults)
 }
-
+*/
 func extractCoords(c *gin.Context) (*location.Point, error) {
 	latStr := c.Query("lat")
 	lonStr := c.Query("lon")

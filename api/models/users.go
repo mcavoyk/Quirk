@@ -99,7 +99,7 @@ func (db *DB) GetUserBySession(sessionID string) (*User, error) {
 	return user, nil
 }
 
-func (db *DB) SessionUpdate(session *Session) {
+func (db *DB) UpdateSession(session *Session) {
 	session.Lat, session.Lon = location.ToRadians(session.Lat), location.ToRadians(session.Lon)
 	_, err := db.NamedExec("UPDATE sessions SET ip_address = :ip_address, lat = :lat, lon = :lon WHERE id = :id", session)
 	if err != nil {

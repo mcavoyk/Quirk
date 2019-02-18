@@ -7,7 +7,6 @@ import (
 	"time"
 )
 
-
 func isZero(v reflect.Value) bool {
 	switch v.Kind() {
 	case reflect.Array, reflect.String:
@@ -36,7 +35,7 @@ func isZero(v reflect.Value) bool {
 }
 
 func createSet(obj interface{}) string {
-	rt := reflect.TypeOf(obj) // reflect.Type
+	rt := reflect.TypeOf(obj)  // reflect.Type
 	rv := reflect.ValueOf(obj) // reflect.Value
 
 	setQuery := "SET"
@@ -57,4 +56,31 @@ func createSet(obj interface{}) string {
 		}
 	}
 	return setQuery
+}
+
+func InsertValues(insert string) string {
+	start := strings.Split(insert, "(")
+	if len(start) == 1 {
+		return insert
+	}
+	start[1] = strings.Join(start[1:], "(")
+
+	end := strings.Split(start[1], ")")
+	endStmt := ""
+	if len(end) > 1 {
+		endStmt = strings.Join(end[1:], ")")
+	}
+
+	columns := end[0]
+	columnSplit := strings.Split(columns, ",")
+	namedValues := ""
+	for i, column := range columnSplit {
+		column = strings.TrimSpace(column)
+		if i != 0 {
+			namedValues += ", "
+		}
+		namedValues += fmt.Sprintf(":%s", column)
+	}
+
+	return fmt.Sprintf("%s(%s) VALUES (%s)%s", start[0], end[0], namedValues, endStmt)
 }

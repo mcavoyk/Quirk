@@ -1,6 +1,6 @@
 [server]
-port = ":5000"
-log_level = "error"
+port = ":5005"
+log_level = "debug"
 root_key = ""
 
 [database]
