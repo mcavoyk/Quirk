@@ -48,8 +48,8 @@ test-e2e:
 	go test ./api/tests -v
 
 ## Unit and integration tests
-test: generate
-	go test `go list ./api/... | grep -v tests` -v
+test:
+	go test `go list ./api/... | grep -v tests` -v -cover
 
 test-all:
 	go test ./api/... -v

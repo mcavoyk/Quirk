@@ -35,14 +35,14 @@ func TestCreateUserAlreadyExists(t *testing.T) {
 	username := "testUser417"
 
 	store := &mocks.Store{}
-	store.On("Read", mock.AnythingOfType("*[]models.User"), models.SelectUserByName, username).
+	store.On("ReadOne", mock.AnythingOfType("*models.User"), models.SelectUserByName, username).
 		Return(nil)
 
 	router := NewRouter(store, viper.New())
 	body := map[string]interface{}{"username": username}
 	w := performRequest(router, http.MethodPost, ApiV1+"/user", body)
 
-	assertStore(t, store, storeFunc{Read: 1})
+	assertStore(t, store, storeFunc{ReadOne: 1})
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
@@ -51,14 +51,14 @@ func TestCreateUserRandom(t *testing.T) {
 
 	randomUsername := ""
 	newUser := models.User{}
-	store.On("Read", mock.AnythingOfType("*[]models.User"), models.SelectUserByName, mock.MatchedBy(func(username string) bool {
+	store.On("ReadOne", mock.AnythingOfType("*models.User"), models.SelectUserByName, mock.MatchedBy(func(username string) bool {
 		randomUsername = username
 		return true
 	})).Return(fmt.Errorf("user not found")).Once()
-	store.On("Read", mock.AnythingOfType("*[]models.User"), models.SelectUserByName, mock.MatchedBy(func(username string) bool {
+	store.On("ReadOne", mock.AnythingOfType("*models.User"), models.SelectUserByName, mock.MatchedBy(func(username string) bool {
 		return randomUsername == username
 	})).Return(nil).Run(func(args mock.Arguments) {
-		*(args[0].(*[]models.User)) = []models.User{newUser}
+		*(args[0].(*models.User)) = newUser
 	})
 	store.On("Write", models.InsertUser, mock.MatchedBy(func(insert *models.User) bool {
 		newUser = *insert
@@ -72,7 +72,7 @@ func TestCreateUserRandom(t *testing.T) {
 	var createdUser models.User
 	_ = json.Unmarshal(body, &createdUser)
 
-	assertStore(t, store, storeFunc{Read: 2, Write: 1})
+	assertStore(t, store, storeFunc{ReadOne: 2, Write: 1})
 	assert.Equal(t, http.StatusCreated, w.Code)
 	assert.NotZero(t, createdUser.Password, "Should not return empty password")
 	assert.NotEqual(t, newUser.Password, createdUser.Password, "Should not return hashed password")
@@ -85,9 +85,9 @@ func TestCreateUser(t *testing.T) {
 
 	store := &mocks.Store{}
 	newUser := models.User{}
-	store.On("Read", mock.AnythingOfType("*[]models.User"), models.SelectUserByName, body["username"]).Return(fmt.Errorf("user not found")).Once()
-	store.On("Read", mock.AnythingOfType("*[]models.User"), models.SelectUserByName, body["username"]).Return(nil).Run(func(args mock.Arguments) {
-		*(args[0].(*[]models.User)) = []models.User{newUser}
+	store.On("ReadOne", mock.AnythingOfType("*models.User"), models.SelectUserByName, body["username"]).Return(fmt.Errorf("user not found")).Once()
+	store.On("ReadOne", mock.AnythingOfType("*models.User"), models.SelectUserByName, body["username"]).Return(nil).Run(func(args mock.Arguments) {
+		*(args[0].(*models.User)) = newUser
 	})
 	store.On("Write", models.InsertUser, mock.MatchedBy(func(insert *models.User) bool {
 		newUser = *insert
@@ -101,7 +101,7 @@ func TestCreateUser(t *testing.T) {
 	var createdUser models.User
 	_ = json.Unmarshal(respBody, &createdUser)
 
-	assertStore(t, store, storeFunc{Read: 2, Write: 1})
+	assertStore(t, store, storeFunc{ReadOne: 2, Write: 1})
 	assert.Equal(t, http.StatusCreated, w.Code)
 	assert.Zero(t, createdUser.Password, "Should return empty password field")
 	createdUser.Password = newUser.Password
@@ -112,12 +112,12 @@ func TestLoginNoUser(t *testing.T) {
 	body := map[string]interface{}{"username": "testUsername417", "password": "hunter2", "lat": 42, "lon": 42}
 
 	store := &mocks.Store{}
-	store.On("Read", mock.AnythingOfType("*[]models.User"), models.SelectUserByName, body["username"]).Return(fmt.Errorf("user not found"))
+	store.On("ReadOne", mock.AnythingOfType("*models.User"), models.SelectUserByName, body["username"]).Return(fmt.Errorf("user not found"))
 
 	router := NewRouter(store, viper.New())
 	w := performRequest(router, http.MethodPost, ApiV1+"/user/login", body)
 
-	assertStore(t, store, storeFunc{Read: 1})
+	assertStore(t, store, storeFunc{ReadOne: 1})
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
 }
 
@@ -126,14 +126,14 @@ func TestLoginUnauthorized(t *testing.T) {
 	UserID := "666"
 
 	store := &mocks.Store{}
-	store.On("Read", mock.AnythingOfType("*[]models.User"), models.SelectUserByName, body["username"]).Return(nil).Run(func(args mock.Arguments) {
-		*(args[0].(*[]models.User)) = []models.User{{Default: models.Default{ID: UserID}, Password: "notHunter2Hash"}}
+	store.On("ReadOne", mock.AnythingOfType("*models.User"), models.SelectUserByName, body["username"]).Return(nil).Run(func(args mock.Arguments) {
+		*(args[0].(*models.User)) = models.User{Default: models.Default{ID: UserID}, Password: "notHunter2Hash"}
 	})
 
 	router := NewRouter(store, viper.New())
 	w := performRequest(router, http.MethodPost, ApiV1+"/user/login", body)
 
-	assertStore(t, store, storeFunc{Read: 1})
+	assertStore(t, store, storeFunc{ReadOne: 1})
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
 }
 
@@ -142,8 +142,8 @@ func TestLoginAuthorized(t *testing.T) {
 	UserID := "666"
 
 	store := &mocks.Store{}
-	store.On("Read", mock.AnythingOfType("*[]models.User"), models.SelectUserByName, body["username"]).Return(nil).Run(func(args mock.Arguments) {
-		*(args[0].(*[]models.User)) = []models.User{{Default: models.Default{ID: UserID}, Password: "$2a$10$9IDtcGMy7SujzKJCoMibwO/5BXvYERn9GdVwtWXiV0ow2p1RPyakW"}}
+	store.On("ReadOne", mock.AnythingOfType("*models.User"), models.SelectUserByName, body["username"]).Return(nil).Run(func(args mock.Arguments) {
+		*(args[0].(*models.User)) = models.User{Default: models.Default{ID: UserID}, Password: "$2a$10$9IDtcGMy7SujzKJCoMibwO/5BXvYERn9GdVwtWXiV0ow2p1RPyakW"}
 	})
 	store.On("Write", models.InsertSession, mock.MatchedBy(func(insert *models.Session) bool {
 		return insert.ID != "" && insert.UserID == UserID && insert.Lat == body["lat"].(float64) && insert.Lon == body["lon"].(float64)
@@ -157,7 +157,7 @@ func TestLoginAuthorized(t *testing.T) {
 	_ = json.Unmarshal(respBody, &creds)
 	expiry, _ := time.Parse(time.RFC3339, creds["expiry"])
 
-	assertStore(t, store, storeFunc{Read: 1, Write: 1})
+	assertStore(t, store, storeFunc{ReadOne: 1, Write: 1})
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, 2, len(creds))
 	assert.NotZero(t, creds["token"], "Login session token should exist")

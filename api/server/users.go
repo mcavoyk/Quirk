@@ -64,14 +64,13 @@ func (env *Env) CreateUser(c *gin.Context) {
 		newUser.Username = randomName()
 	}
 
-	result := make([]models.User, 0)
-	err := env.db.Read(&result, models.SelectUserByName, newUser.Username)
-	logrus.Debugf("Found %d users", len(result))
+	existingUser := models.User{}
+	err := env.db.ReadOne(&existingUser, models.SelectUserByName, newUser.Username)
 	if err == nil {
 		if randomUser {
 			for err == nil {
 				newUser.Username = randomName()
-				err = env.db.Read(&models.User{}, models.SelectUserByName, newUser.Username)
+				err = env.db.ReadOne(&models.User{}, models.SelectUserByName, newUser.Username)
 			}
 		} else {
 			c.JSON(http.StatusBadRequest, gin.H{"status": "Username already exists"})
@@ -92,13 +91,13 @@ func (env *Env) CreateUser(c *gin.Context) {
 		return
 	}
 
-	err = env.db.Read(&result, models.SelectUserByName, newUser.Username)
-	if err != nil || len(result) != 1 {
-		logrus.Errorf("Received Read Error: %v", err)
+	user := models.User{}
+	err = env.db.ReadOne(&user, models.SelectUserByName, newUser.Username)
+	if err != nil {
+		logrus.Errorf("Read user error: %s", err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{"status": "internal server error"})
 		return
 	}
-	user := result[0]
 	user.Password = ""
 	if randomPassword {
 		user.Password = newUser.Password
@@ -108,13 +107,12 @@ func (env *Env) CreateUser(c *gin.Context) {
 
 func (env *Env) GetUser(c *gin.Context) {
 	id := c.Param("id")
-	result := make([]models.User, 0)
-	err := env.db.Read(&result, models.SelectUser, id)
-	if err != nil || len(result) == 0 {
+	user := models.User{}
+	err := env.db.ReadOne(&user, models.SelectUser, id)
+	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"status": NotFound})
 		return
 	}
-	user := result[0]
 	if err := env.HasPermission(c, c.GetString(UserContext), user.ID); err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"status": "Forbidden"})
 		return
@@ -196,14 +194,13 @@ func (env *Env) LoginUser(c *gin.Context) {
 		return
 	}
 
-	users := make([]models.User, 0)
-	err := env.db.Read(&users, models.SelectUserByName, newLogin.Username)
-	if err != nil || users[0].DeletedAt != nil {
+	user := models.User{}
+	err := env.db.ReadOne(&user, models.SelectUserByName, newLogin.Username)
+	if err != nil || user.DeletedAt != nil {
 		logrus.Debugf("User %s not found on login", newLogin.Username)
 		c.JSON(http.StatusUnauthorized, gin.H{"status": "Unauthorized"})
 		return
 	}
-	user := users[0]
 	validPass := comparePasswords(user.Password, newLogin.Password)
 
 	if !validPass {
@@ -266,6 +263,7 @@ func (env *Env) UserVerify(c *gin.Context) {
 	}
 	existingSession.IP = ip.Parse(c.Request)
 
+	//FIXME: Might be too much to do a write on every request, possibly once per user per day?
 	_ = env.db.Write(models.UpdateSession, existingSession)
 	c.Set(UserContext, existingSession.UserID)
 	logrus.Debugf("Total auth middleware: %f", time.Since(start).Seconds())

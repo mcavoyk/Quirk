@@ -66,11 +66,11 @@ func (env *Env) CreatePost(c *gin.Context) {
 func (env *Env) GetPost(c *gin.Context) {
 	id := c.Param("id")
 
-	var post models.Post
+	var post models.PostInfo
 	err := env.db.ReadOne(&post, models.SelectPostByUser, id, c.GetString(UserContext))
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"status": err.Error()})
+		c.JSON(http.StatusNotFound, gin.H{"status": NotFound})
 		return
 	}
 	c.JSON(http.StatusOK, post)

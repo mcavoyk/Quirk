@@ -79,11 +79,29 @@ func TestCreatePostReply(t *testing.T) {
 
 ///		 Get post by ID		 \\\
 func TestGetPostNotExist(t *testing.T) {
+	store := authStore()
+	postID := "703"
 
+	store.On("ReadOne", mock.AnythingOfType("*models.PostInfo"), models.SelectPostByUser, postID, testUser).Return(fmt.Errorf("no post found"))
+
+	router := NewRouter(store, viper.New())
+	w := performRequest(router, http.MethodGet, ApiV1+"/post/"+postID, nil)
+
+	assertStore(t, store, authCalls(storeFunc{ReadOne: 1}))
+	assert.Equal(t, http.StatusNotFound, w.Code)
 }
 
 func TestGetPost(t *testing.T) {
+	store := authStore()
+	postID := "703"
 
+	store.On("ReadOne", mock.AnythingOfType("*models.PostInfo"), models.SelectPostByUser, postID, testUser).Return(nil)
+
+	router := NewRouter(store, viper.New())
+	w := performRequest(router, http.MethodGet, ApiV1+"/post/"+postID, nil)
+
+	assertStore(t, store, authCalls(storeFunc{ReadOne: 1}))
+	assert.Equal(t, http.StatusOK, w.Code)
 }
 
 ///		 Get post by lat/lon	 \\\
