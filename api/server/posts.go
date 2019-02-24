@@ -49,13 +49,24 @@ func (env *Env) CreatePost(c *gin.Context) {
 
 	err := env.db.Write(models.InsertPost, newPost)
 	if err != nil {
+		logrus.Errorf("Write post error: %s", err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{"status": err.Error()})
 		return
 	}
+
+	// Upvote user's own post
+	err = env.WriteVote(&models.Vote{Vote: 1, UserID: newPost.UserID, PostID: newPost.ID})
+	if err != nil {
+		logrus.Errorf("Vote post error: %s", err.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{"status": err.Error()})
+		return
+	}
+
 	var post models.PostInfo
 	err = env.db.ReadOne(&post, models.SelectPostByUser, newPost.ID, newPost.UserID)
 
 	if err != nil {
+		logrus.Errorf("Read post error: %s", err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{"status": err.Error()})
 		return
 	}
@@ -152,7 +163,7 @@ func (env *Env) SearchPosts(c *gin.Context) {
 	}
 
 	posts := make([]models.PostInfo, 0)
-	distArgs := byDistanceArgs(PostDistance, coords.Lat, coords.Lat)
+	distArgs := byDistanceArgs(PostDistance, coords.Lat, coords.Lon)
 	err = env.db.Read(&posts, models.SelectPostsByDistance, c.GetString(UserContext), distArgs[0], distArgs[1], distArgs[2], distArgs[3], distArgs[4], distArgs[5], distArgs[6], distArgs[7], pageInfo.PerPage, (pageInfo.Page-1)*pageInfo.PerPage)
 
 	if err != nil {

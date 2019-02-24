@@ -101,11 +101,11 @@ func (db *DB) Write(sql string, args interface{}) error {
 }
 
 func (db *DB) Read(out interface{}, sql string, args ...interface{}) error {
-	return db.read.Select(out, sql, args...)
+	return db.read.Unsafe().Select(out, sql, args...)
 }
 
 func (db *DB) ReadOne(out interface{}, sql string, args ...interface{}) error {
-	return db.read.Get(out, sql, args...)
+	return db.read.Unsafe().Get(out, sql, args...)
 }
 
 // NullTime represents a time.Time that may be null. NullTime implements the

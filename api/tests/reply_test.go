@@ -3,18 +3,19 @@ package tests
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/mcavoyk/quirk/api/server"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"testing"
 
+	"github.com/mcavoyk/quirk/api/server"
+
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/h2non/baloo.v3"
+	baloo "gopkg.in/h2non/baloo.v3"
 )
 
 const (
-	url  = "http://localhost:5000/api/v1"
+	url = "http://localhost:5000/api/v1"
 )
 
 var (
@@ -56,7 +57,7 @@ func TestPostReplies(t *testing.T) {
 		t.Fatalf("Error authentication with api: %s", err.Error())
 	}
 
-	assert.Nil(t, api.Get(url+"/post/"+idList1[0]+"/posts?per_page="+fmt.Sprintf("%d",len(idList1))).
+	assert.Nil(t, api.Get(url+"/post/"+idList1[0]+"/posts?per_page="+fmt.Sprintf("%d", len(idList1))).
 		SetHeader("Authorization", "bearer "+token).
 		Expect(t).
 		Status(200).
@@ -67,7 +68,7 @@ func TestPostReplies(t *testing.T) {
 	assert.Equal(t, len(ids), len(idList1)-1)
 	ids = make([]string, 0)
 
-	assert.Nil(t, api.Get(url+"/post/"+idList2[0]+"/posts?per_page="+fmt.Sprintf("%d",len(idList2))).
+	assert.Nil(t, api.Get(url+"/post/"+idList2[0]+"/posts?per_page="+fmt.Sprintf("%d", len(idList2))).
 		SetHeader("Authorization", "bearer "+token).
 		Expect(t).
 		Status(200).
@@ -128,7 +129,7 @@ func createPostTree(t *testing.T, height int, reply string) {
 	if reply != "" {
 		reply = "/" + reply + "/post"
 	}
-	post1 := server.Post{"Test content", "public", 0.0, 0.0}
+	post1 := server.Post{server.Content{"Test content"}, "public", 0.0, 0.0}
 	assert.Nil(t, api.Post(url+"/post"+reply).
 		SetHeader("Authorization", "bearer "+token).
 		JSON(post1).

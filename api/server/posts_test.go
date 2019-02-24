@@ -27,7 +27,7 @@ func TestCreatePostInvalidContent(t *testing.T) {
 
 func TestCreatePostInvalidParent(t *testing.T) {
 	store := authStore()
-	parentID := "703"
+	parentID := models.NewGUID()
 
 	store.On("ReadOne", mock.AnythingOfType("*models.PostInfo"), models.SelectPostByUser, parentID, testUser).Return(fmt.Errorf("no parent post found"))
 
@@ -43,44 +43,54 @@ func TestCreatePost(t *testing.T) {
 	body := map[string]interface{}{"content": map[string]interface{}{"title": "dank memes"}, "access_type": "public", "lat": 5.0, "lon": 10.0}
 	store := authStore()
 
+	var postID string
 	store.On("Write", models.InsertPost, mock.MatchedBy(func(insert *models.Post) bool {
+		postID = insert.ID
 		result := insert.UserID == testUser && insert.ID != "" && insert.Parent == "" && insert.AccessType == body["access_type"].(string)
 		result = result && insert.Lat == location.ToRadians(body["lat"].(float64)) && insert.Lon == location.ToRadians(body["lon"].(float64))
 		return result
+	})).Return(nil).Once()
+	store.On("Write", models.InsertVote, mock.MatchedBy(func(insert *models.Vote) bool {
+		return insert.Vote == 1 && insert.PostID == postID && insert.UserID == testUser
 	})).Return(nil)
 	store.On("ReadOne", mock.AnythingOfType("*models.PostInfo"), models.SelectPostByUser, mock.AnythingOfType("string"), testUser).Return(nil)
 
 	router := NewRouter(store, viper.New())
 	w := performRequest(router, http.MethodPost, ApiV1+"/post", body)
 
-	assertStore(t, store, authCalls(storeFunc{Write: 1, ReadOne: 1}))
+	assertStore(t, store, authCalls(storeFunc{Write: 2, ReadOne: 1}))
 	assert.Equal(t, http.StatusCreated, w.Code)
 }
 
 func TestCreatePostReply(t *testing.T) {
-	parentID := "1004"
+	parentID := models.NewGUID()
 	body := map[string]interface{}{"content": map[string]interface{}{"title": "dank memes"}, "access_type": "public", "lat": 5.0, "lon": 10.0}
 	store := authStore()
 
+	var postID string
 	store.On("ReadOne", mock.AnythingOfType("*models.PostInfo"), models.SelectPostByUser, parentID, testUser).Return(nil).Once()
 	store.On("Write", models.InsertPost, mock.MatchedBy(func(insert *models.Post) bool {
+		postID = insert.ID
 		result := insert.UserID == testUser && insert.ID != "" && insert.Parent == parentID && insert.AccessType == body["access_type"].(string)
 		result = result && insert.Lat == location.ToRadians(body["lat"].(float64)) && insert.Lon == location.ToRadians(body["lon"].(float64))
 		return result
+	})).Return(nil).Once()
+	store.On("Write", models.InsertVote, mock.MatchedBy(func(insert *models.Vote) bool {
+		return insert.Vote == 1 && insert.PostID == postID && insert.UserID == testUser
 	})).Return(nil)
 	store.On("ReadOne", mock.AnythingOfType("*models.PostInfo"), models.SelectPostByUser, mock.AnythingOfType("string"), testUser).Return(nil)
 
 	router := NewRouter(store, viper.New())
 	w := performRequest(router, http.MethodPost, ApiV1+"/post/"+parentID+"/post", body)
 
-	assertStore(t, store, authCalls(storeFunc{Write: 1, ReadOne: 2}))
+	assertStore(t, store, authCalls(storeFunc{Write: 2, ReadOne: 2}))
 	assert.Equal(t, http.StatusCreated, w.Code)
 }
 
 ///		 Get post by ID		 \\\
 func TestGetPostNotExist(t *testing.T) {
 	store := authStore()
-	postID := "703"
+	postID := models.NewGUID()
 
 	store.On("ReadOne", mock.AnythingOfType("*models.PostInfo"), models.SelectPostByUser, postID, testUser).Return(fmt.Errorf("no post found"))
 
@@ -93,7 +103,7 @@ func TestGetPostNotExist(t *testing.T) {
 
 func TestGetPost(t *testing.T) {
 	store := authStore()
-	postID := "703"
+	postID := models.NewGUID()
 
 	store.On("ReadOne", mock.AnythingOfType("*models.PostInfo"), models.SelectPostByUser, postID, testUser).Return(nil)
 

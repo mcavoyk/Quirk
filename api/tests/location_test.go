@@ -37,12 +37,12 @@ func createPost(t *testing.T, lat, lon float64) {
 		t.Fatalf("Error authentication with api: %s", err.Error())
 	}
 
-	post := server.Post{gfyid.RandomID(), "public", lat, lon}
+	post := server.Post{server.Content{gfyid.RandomID()}, "public", lat, lon}
 	assert.Nil(t, api.Post(url+"/post").
 		SetHeader("Authorization", "bearer "+token).
 		JSON(post).
 		Expect(t).
-		Status(200).
+		Status(201).
 		Type("json").
 		AssertFunc(getSingleID).
 		Done())

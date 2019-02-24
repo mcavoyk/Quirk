@@ -232,7 +232,6 @@ func (env *Env) LoginUser(c *gin.Context) {
 
 // UserVerify is auth middleware to check session token from Authorization header
 func (env *Env) UserVerify(c *gin.Context) {
-	start := time.Now()
 	sessionID := extractToken(c)
 	if sessionID == "" {
 		c.AbortWithStatus(http.StatusForbidden)
@@ -266,7 +265,6 @@ func (env *Env) UserVerify(c *gin.Context) {
 	//FIXME: Might be too much to do a write on every request, possibly once per user per day?
 	_ = env.db.Write(models.UpdateSession, existingSession)
 	c.Set(UserContext, existingSession.UserID)
-	logrus.Debugf("Total auth middleware: %f", time.Since(start).Seconds())
 	c.Next()
 }
 
