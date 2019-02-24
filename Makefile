@@ -19,6 +19,10 @@ clean:
 	@echo "  >  Cleaning build cache"
 	@rm -rf $(GOBIN)
 
+## generate: run go generate
+generate:
+	@go generate ./...
+
 ## build: Build API Binary for Host OS
 build: clean
 	@echo "  >  Building binary..."
@@ -44,7 +48,7 @@ test-e2e:
 	go test ./api/tests -v
 
 ## Unit and integration tests
-test:
+test: generate
 	go test `go list ./api/... | grep -v tests` -v
 
 test-all:

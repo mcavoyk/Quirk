@@ -1,11 +1,5 @@
 package models
 
-import (
-	"fmt"
-
-	"github.com/sirupsen/logrus"
-)
-
 // Vote represents a user's vote on a post
 type Vote struct {
 	UserID string `json:"user_id" binding:"-"`
@@ -18,9 +12,8 @@ const (
 	Downvote = -1
 )
 
-const InsertVotes = "INSERT INTO votes (user_id, post_id, vote) ON DUPLICATE KEY UPDATE vote = VALUES(vote)"
-
 // InsertOrUpdateVote Valid vote states are -1, 0, 1
+/*
 func (db *DB) InsertVote(vote *Vote) error {
 	if vote.Vote >= Downvote || vote.Vote <= Upvote {
 		sqlStmt := InsertValues(InsertVotes)
@@ -34,3 +27,4 @@ func (db *DB) InsertVote(vote *Vote) error {
 		return fmt.Errorf("Invalid vote state '%d'", vote.Vote)
 	}
 }
+*/

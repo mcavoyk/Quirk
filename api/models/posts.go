@@ -1,17 +1,5 @@
 package models
 
-import (
-	"errors"
-	"fmt"
-	"strings"
-
-	"github.com/sirupsen/logrus"
-
-	"github.com/mcavoyk/quirk/api/pkg/location"
-)
-
-const Distance = 8.04672 // KM (5 Miles)
-
 // Post represents top level content, viewable based on a user's location
 // and the Posts Lat/Long
 type Post struct {
@@ -37,8 +25,7 @@ type PostInfo struct {
 	//ColReason   string
 }
 
-const InsertPost = "INSERT INTO posts (id, user_id, parent, lat, lon, access_type, content)"
-
+/*
 func (db *DB) InsertPost(post *Post) (*PostInfo, error) {
 	if post.Parent != "" {
 		parentSplit := strings.Split(post.Parent, "/")
@@ -87,7 +74,7 @@ func (db *DB) GetPostByUser(id string, user string) (*PostInfo, error) {
 }
 
 func (db *DB) UpdatePost(post *Post, user string) (*PostInfo, error) {
-	sqlStmt := "UPDATE posts " + createSet(*post) + " WHERE id = ?"
+	sqlStmt := UpdateValues("posts", *post)
 	logrus.Debugf("Update post SQL: %s", sqlStmt)
 	_, err := db.Exec(sqlStmt, post.ID)
 	if err != nil {
@@ -143,8 +130,4 @@ func (db *DB) PostsByParent(parent, user string, page, pageSize int) ([]PostInfo
 
 	return posts, nil
 }
-
-const wilsonOrder = "((positive + 1.9208) / (positive + negative) - 1.96 * SQRT((positive * negative) / (positive + negative)" +
-	" + 0.9604) /(positive + negative)) / (1 + 3.8416 / (positive + negative)) AS score"
-
-var byDistance = "(lat >= ? AND lat <= ?) AND (lon >= ? AND lon <= ?) AND ACOS(SIN(?) * SIN(lat) + COS(?) * COS(lat) * COS(lon - (?))) <= ?"
+*/

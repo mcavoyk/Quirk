@@ -7,14 +7,14 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/mcavoyk/quirk/api/pkg/location"
+	"github.com/sirupsen/logrus"
 )
 
-/*
 func (env *Env) healthCheck(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	err := env.db.PingContext(ctx)
-	cancel()
+	var result int
+	err := env.db.ReadOne(&result, "SELECT 1")
 	if err != nil {
+		logrus.Errorf("Health check unhealthy: %s", err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": "unhealthy",
 		})
@@ -22,11 +22,11 @@ func (env *Env) healthCheck(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"status": "healthy"})
 }
-*/
+
+const NotFound = "Page not found"
+
 func noRoute(c *gin.Context) {
-	c.JSON(http.StatusNotFound, gin.H{
-		"status": "Page not found",
-	})
+	c.JSON(http.StatusNotFound, gin.H{"status": NotFound})
 }
 
 /*

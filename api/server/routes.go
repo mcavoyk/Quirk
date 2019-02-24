@@ -8,7 +8,7 @@ func loadRoutes(router *gin.Engine, env *Env) {
 	router.NoRoute(noRoute)
 	api := router.Group(ApiV1)
 	{
-		//api.GET("/health", env.healthCheck)
+		api.GET("/health", env.healthCheck)
 
 		api.POST("/user", env.CreateUser)
 		api.POST("/user/login", env.LoginUser)

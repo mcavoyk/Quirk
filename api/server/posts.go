@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/sirupsen/logrus"
 
@@ -12,6 +11,8 @@ import (
 	"github.com/mcavoyk/quirk/api/models"
 	"github.com/mcavoyk/quirk/api/pkg/location"
 )
+
+const PostDistance = 8.04672 // in KM (=5 Miles)
 
 type Post struct {
 	Content    Content `json:"content" form:"content" binding:"required"`
@@ -33,31 +34,46 @@ func (env *Env) CreatePost(c *gin.Context) {
 		return
 	}
 
-	newPost := convertPost(givenPost, &models.Post{})
+	newPost := marshalPost(givenPost)
+	newPost.ID = models.NewGUID()
 	newPost.UserID = c.GetString(UserContext)
 	newPost.Parent = parentID
+	if parentID != "" {
+		var parentPost models.PostInfo
+		err := env.db.ReadOne(&parentPost, models.SelectPostByUser, parentID, newPost.UserID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"status": "Invalid parent post ID"})
+			return
+		}
+	}
 
-	post, err := env.db.InsertPost(newPost)
+	err := env.db.Write(models.InsertPost, newPost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"status": err.Error()})
+		return
+	}
+	var post models.PostInfo
+	err = env.db.ReadOne(&post, models.SelectPostByUser, newPost.ID, newPost.UserID)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"status": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"status": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, post)
+	c.JSON(http.StatusCreated, post)
 }
 
 func (env *Env) GetPost(c *gin.Context) {
-	start := time.Now()
 	id := c.Param("id")
 
-	post, err := env.db.GetPostByUser(id, c.GetString(UserContext))
+	var post models.Post
+	err := env.db.ReadOne(&post, models.SelectPostByUser, id, c.GetString(UserContext))
+
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"status": "Page not found"})
+		c.JSON(http.StatusInternalServerError, gin.H{"status": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, post)
-	logrus.Debugf("Total get post time: %f", time.Since(start).Seconds())
 }
 
 func (env *Env) UpdatePost(c *gin.Context) {
@@ -67,7 +83,8 @@ func (env *Env) UpdatePost(c *gin.Context) {
 	if err := c.Bind(post); err != nil {
 		return
 	}
-	existingPost, err := env.db.GetPostByUser(id, userID)
+	var existingPost models.Post
+	err := env.db.ReadOne(&existingPost, models.SelectPostByUser, id, userID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"status": "Page not found"})
 		return
@@ -78,21 +95,30 @@ func (env *Env) UpdatePost(c *gin.Context) {
 		return
 	}
 
-	newPost := convertPost(post, &models.Post{})
+	newPost := marshalPost(post)
 	newPost.ID = id
-	returnedPost, err := env.db.UpdatePost(newPost, userID)
+	err = env.db.Write(models.UpdateValues("posts", *newPost), newPost)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"status": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, returnedPost)
+
+	var updatedPost models.Post
+	err = env.db.ReadOne(&updatedPost, models.SelectPostByUser, id, userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"status": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, updatedPost)
 }
 
 func (env *Env) DeletePost(c *gin.Context) {
 	id := c.Param("id")
 	userID := c.GetString(UserContext)
 
-	post, err := env.db.GetPostByUser(id, userID)
+	var post models.Post
+	err := env.db.ReadOne(&post, models.SelectPostByUser, id, userID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"status": "Page not found"})
 		return
@@ -103,7 +129,10 @@ func (env *Env) DeletePost(c *gin.Context) {
 		return
 	}
 
-	_ = env.db.DeletePost(id)
+	if _, err = env.db.Exec(models.DeletePostSoft, id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"status": err.Error()})
+		return
+	}
 	c.Status(http.StatusNoContent)
 }
 
@@ -122,7 +151,9 @@ func (env *Env) SearchPosts(c *gin.Context) {
 		return
 	}
 
-	posts, err := env.db.PostsByDistance(coords.Lat, coords.Lon, c.GetString(UserContext), pageInfo.Page, pageInfo.PerPage)
+	posts := make([]models.PostInfo, 0)
+	distArgs := byDistanceArgs(PostDistance, coords.Lat, coords.Lat)
+	err = env.db.Read(&posts, models.SelectPostsByDistance, c.GetString(UserContext), distArgs[0], distArgs[1], distArgs[2], distArgs[3], distArgs[4], distArgs[5], distArgs[6], distArgs[7], pageInfo.PerPage, (pageInfo.Page-1)*pageInfo.PerPage)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"status": err.Error()})
@@ -145,14 +176,16 @@ func (env *Env) GetPostChildren(c *gin.Context) {
 		return
 	}
 
-	parentPost, err := env.db.GetPostByUser(parentID, userID)
+	var parentPost models.Post
+	err := env.db.ReadOne(&parentPost, models.SelectPostByUser, parentID, userID)
 	if err != nil {
 		logrus.Debugf("ParentID: %s | userID: %s", parentID, userID)
 		c.JSON(http.StatusNotFound, gin.H{"status": "Page not found"})
 		return
 	}
 
-	posts, err := env.db.PostsByParent(fmt.Sprintf("%s/%s", parentPost.Parent, parentPost.ID), userID, pageInfo.Page, pageInfo.PerPage)
+	posts := make([]models.PostInfo, 0)
+	err = env.db.Read(&posts, models.SelectPostsByParent, userID, fmt.Sprintf("%s/%s", parentPost.Parent, parentPost.ID), pageInfo.PerPage, (pageInfo.Page-1)*pageInfo.PerPage)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"status": err.Error()})
@@ -164,14 +197,28 @@ func (env *Env) GetPostChildren(c *gin.Context) {
 	c.JSON(http.StatusOK, pageInfo)
 }
 
-func convertPost(src *Post, dst *models.Post) *models.Post {
-	bytes, err := json.Marshal(src.Content)
+func marshalPost(post *Post) *models.Post {
+	newPost := &models.Post{}
+	bytes, err := json.Marshal(post.Content)
 	if err != nil {
 		fmt.Printf("Marshal error: %s\n", err.Error())
 	}
-	dst.Content = string(bytes)
-	dst.AccessType = src.AccessType
-	dst.Lat = location.ToRadians(src.Lat)
-	dst.Lon = location.ToRadians(src.Lon)
-	return dst
+	newPost.Content = string(bytes)
+	newPost.AccessType = post.AccessType
+	newPost.Lat = location.ToRadians(post.Lat)
+	newPost.Lon = location.ToRadians(post.Lon)
+	return newPost
+}
+
+func byDistanceArgs(distance, lat, lon float64) []float64 {
+	lat, lon = location.ToRadians(lat), location.ToRadians(lon)
+
+	points := location.BoundingPoints(&location.Point{Lat: lat, Lon: lon}, distance)
+	minLat := points[0].Lat
+	minLon := points[0].Lon
+	maxLat := points[1].Lat
+	maxLon := points[1].Lon
+
+	logrus.Debugf("minLat %f | minLon %f | maxLat %f | maxLon %f | lat %f | lon %f", minLat, minLon, maxLat, maxLon, lat, lon)
+	return []float64{minLat, maxLat, minLon, maxLon, lat, lat, lon, distance / location.EarthRadius}
 }

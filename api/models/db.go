@@ -21,28 +21,23 @@ type DB struct {
 	read  *sqlx.DB
 }
 
+//go:generate mockery -name Store -output ../mocks
 type Store interface {
 	Exec(sql string, args ...interface{}) (sql.Result, error)
 	Write(sql string, args interface{}) error
 	Read(out interface{}, sql string, args ...interface{}) error
+	ReadOne(out interface{}, sql string, args ...interface{}) error
 	//
-	InsertUser(user *User) (*User, error)
-	GetUser(id string) (*User, error)
-	GetUserByName(username string) (*User, error)
-	InsertSession(session *Session) (*Session, error)
-	GetSession(id string) (*Session, error)
-	GetUserBySession(sessionID string) (*User, error)
-	UpdateUser(user *User) (*User, error)
-	UpdateSession(session *Session)
-	DeleteUser(id string) error
-	InsertPost(post *Post) (*PostInfo, error)
-	GetPost(id string) (*PostInfo, error)
-	GetPostByUser(id string, user string) (*PostInfo, error)
-	UpdatePost(post *Post, user string) (*PostInfo, error)
-	DeletePost(id string) error
-	PostsByDistance(lat, lon float64, userID string, page, pageSize int) ([]PostInfo, error)
-	PostsByParent(parent, user string, page, pageSize int) ([]PostInfo, error)
-	InsertVote(vote *Vote) error
+	/*
+		InsertPost(post *Post) (*PostInfo, error)
+		GetPost(id string) (*PostInfo, error)
+		GetPostByUser(id string, user string) (*PostInfo, error)
+		UpdatePost(post *Post, user string) (*PostInfo, error)
+		DeletePost(id string) error
+		PostsByDistance(lat, lon float64, userID string, page, pageSize int) ([]PostInfo, error)
+		PostsByParent(parent, user string, page, pageSize int) ([]PostInfo, error)
+		InsertVote(vote *Vote) error
+	*/
 }
 
 var _ Store = (*DB)(nil)
@@ -100,13 +95,17 @@ func NewGUID() string {
 	return ksuid.New().String()
 }
 
-func (db *DB) Write(sql  string, args interface{}) error {
+func (db *DB) Write(sql string, args interface{}) error {
 	_, err := db.write.NamedExec(sql, args)
 	return err
 }
 
 func (db *DB) Read(out interface{}, sql string, args ...interface{}) error {
 	return db.read.Select(out, sql, args...)
+}
+
+func (db *DB) ReadOne(out interface{}, sql string, args ...interface{}) error {
+	return db.read.Get(out, sql, args...)
 }
 
 // NullTime represents a time.Time that may be null. NullTime implements the

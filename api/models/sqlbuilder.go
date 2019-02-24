@@ -34,6 +34,10 @@ func isZero(v reflect.Value) bool {
 	return false
 }
 
+func UpdateValues(table string, obj interface{}) string {
+	return fmt.Sprintf("UPDATE %s %s WHERE id = ?", table, createSet(obj))
+}
+
 func createSet(obj interface{}) string {
 	rt := reflect.TypeOf(obj)  // reflect.Type
 	rv := reflect.ValueOf(obj) // reflect.Value

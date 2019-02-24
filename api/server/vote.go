@@ -22,7 +22,7 @@ func (env *Env) SubmitVote(c *gin.Context) {
 	vote.UserID = c.GetString(UserContext)
 	vote.PostID = c.Param("id")
 
-	if err := env.db.InsertVote(vote); err != nil {
+	if err := env.db.Write(models.InsertVote, vote); err != nil {
 		errNum := -1
 		if sqlErr, ok := err.(*mysql.MySQLError); ok {
 			errNum = int(sqlErr.Number)

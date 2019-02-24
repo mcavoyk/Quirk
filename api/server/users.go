@@ -24,6 +24,8 @@ type User struct {
 	Email       string `json:"email" form:"email"`
 }
 
+const tokenExpiry = 14 * 24 * time.Hour
+
 type Login struct {
 	Username string  `json:"username" form:"username" binding:"required"`
 	Password string  `json:"password" form:"password" binding:"required"`
@@ -42,10 +44,10 @@ func marshalUser(user *User) *models.User {
 		user.DisplayName = user.Username
 	}
 	newUser := &models.User{
-		Username: user.Username,
+		Username:    user.Username,
 		DisplayName: user.DisplayName,
-		Email: user.Email,
-		Password: hashSalt(user.Password),
+		Email:       user.Email,
+		Password:    hashSalt(user.Password),
 	}
 	newUser.ID = models.NewGUID()
 	return newUser
@@ -83,7 +85,7 @@ func (env *Env) CreateUser(c *gin.Context) {
 		newUser.Password = NewPass()
 	}
 
-	err = env.db.Write(models.InsertValues(models.InsertUser), marshalUser(newUser))
+	err = env.db.Write(models.InsertUser, marshalUser(newUser))
 	if err != nil {
 		logrus.Errorf("Received Write Error: %s", err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{"status": err.Error()})
@@ -106,14 +108,13 @@ func (env *Env) CreateUser(c *gin.Context) {
 
 func (env *Env) GetUser(c *gin.Context) {
 	id := c.Param("id")
-	user, err := env.db.GetUser(id)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"status": "Page not found",
-		})
+	result := make([]models.User, 0)
+	err := env.db.Read(&result, models.SelectUser, id)
+	if err != nil || len(result) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"status": NotFound})
 		return
 	}
-
+	user := result[0]
 	if err := env.HasPermission(c, c.GetString(UserContext), user.ID); err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"status": "Forbidden"})
 		return
@@ -141,19 +142,23 @@ func (env *Env) PatchUser(c *gin.Context) {
 		id = userID
 	}
 
-	newUser, err := env.db.UpdateUser(&models.User{
+	UserUpdate := &models.User{
 		Default:     models.Default{ID: id},
 		Username:    user.Username,
 		DisplayName: user.DisplayName,
 		Password:    user.Password,
 		Email:       user.Password,
-	})
+	}
+	err := env.db.Write(models.UpdateValues("users", *UserUpdate), UserUpdate.ID)
 
 	if err != nil {
+		logrus.Errorf("Error while updating user: %s", err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{"status": err.Error()})
 		return
 	}
 
+	newUser := models.User{}
+	err = env.db.ReadOne(&newUser, models.SelectUser)
 	c.JSON(http.StatusOK, newUser)
 }
 
@@ -166,7 +171,18 @@ func (env *Env) DeleteUser(c *gin.Context) {
 		return
 	}
 
-	_ = env.db.DeleteUser(id)
+	if _, err := env.db.Exec(models.DeleteUserSoft, id); err != nil {
+		logrus.Errorf("Error while deleting user: %s", err.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{"status": err.Error()})
+		return
+	}
+
+	if _, err := env.db.Exec(models.DeleteSessions, id); err != nil {
+		logrus.Errorf("Error while deleting user sessions: %s", err.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{"status": err.Error()})
+		return
+	}
+
 	c.Status(http.StatusNoContent)
 }
 
@@ -180,42 +196,41 @@ func (env *Env) LoginUser(c *gin.Context) {
 		return
 	}
 
-	user, err := env.db.GetUserByName(newLogin.Username)
-	if err != nil || user.DeletedAt != nil {
+	users := make([]models.User, 0)
+	err := env.db.Read(&users, models.SelectUserByName, newLogin.Username)
+	if err != nil || users[0].DeletedAt != nil {
 		logrus.Debugf("User %s not found on login", newLogin.Username)
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"status": "Unauthorized",
-		})
+		c.JSON(http.StatusUnauthorized, gin.H{"status": "Unauthorized"})
+		return
+	}
+	user := users[0]
+	validPass := comparePasswords(user.Password, newLogin.Password)
+
+	if !validPass {
+		c.JSON(http.StatusUnauthorized, gin.H{"status": "Unauthorized"})
 		return
 	}
 
-	validPass := comparePasswords(user.Password, newLogin.Password)
-	if validPass {
-		expiry := time.Now().Add(14 * 24 * time.Hour)
-		session, err := env.db.InsertSession(&models.Session{
-			UserID:    user.ID,
-			Expiry:    expiry,
-			Lat:       newLogin.Lat,
-			Lon:       newLogin.Lon,
-			IP:        ip.Parse(c.Request),
-			UserAgent: c.GetHeader("User-Agent"),
-		})
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"status": err.Error(),
-			})
-			return
-		}
+	session := &models.Session{
+		UserID:    user.ID,
+		Expiry:    time.Now().Add(tokenExpiry),
+		Lat:       newLogin.Lat,
+		Lon:       newLogin.Lon,
+		IP:        ip.Parse(c.Request),
+		UserAgent: c.GetHeader("User-Agent")}
+	session.ID = models.NewGUID()
 
-		c.JSON(http.StatusOK, gin.H{
-			"token":   session.ID,
-			"expires": session.Expiry,
-		})
-	} else {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"status": "Unauthorized",
-		})
+	err = env.db.Write(models.InsertSession, session)
+	if err != nil {
+		logrus.Errorf("Error inserting login sessions: %s", err.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{"status": "Internal server error"})
+		return
 	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"token":  session.ID,
+		"expiry": session.Expiry,
+	})
 }
 
 // UserVerify is auth middleware to check session token from Authorization header
@@ -236,13 +251,8 @@ func (env *Env) UserVerify(c *gin.Context) {
 		}
 	}
 
-	existingSession, err := env.db.GetSession(sessionID)
-	if err != nil {
-		c.AbortWithStatus(http.StatusForbidden)
-		return
-	}
-
-	existingUser, err := env.db.GetUserBySession(sessionID)
+	existingSession := models.Session{}
+	err := env.db.ReadOne(&existingSession, models.SelectSession, sessionID)
 	if err != nil {
 		c.AbortWithStatus(http.StatusForbidden)
 		return
@@ -256,8 +266,8 @@ func (env *Env) UserVerify(c *gin.Context) {
 	}
 	existingSession.IP = ip.Parse(c.Request)
 
-	env.db.UpdateSession(existingSession)
-	c.Set(UserContext, existingUser.ID)
+	_ = env.db.Write(models.UpdateSession, existingSession)
+	c.Set(UserContext, existingSession.UserID)
 	logrus.Debugf("Total auth middleware: %f", time.Since(start).Seconds())
 	c.Next()
 }
