@@ -14,15 +14,15 @@ import (
 	"github.com/segmentio/ksuid"
 )
 
-type DB struct {
-	*sqlx.DB
-	//
+type SqlDB struct {
+	//*sqlx.SqlDB
 	write *sqlx.DB
 	read  *sqlx.DB
 }
 
 //go:generate mockery -name Store -output ../mocks
 type Store interface {
+	UserService
 	Exec(sql string, args ...interface{}) (sql.Result, error)
 	Write(sql string, args interface{}) error
 	Read(out interface{}, sql string, args ...interface{}) error
@@ -40,7 +40,7 @@ type Store interface {
 	*/
 }
 
-var _ Store = (*DB)(nil)
+var _ Store = (*SqlDB)(nil)
 
 type Default struct {
 	ID        string    `json:"id"`
@@ -50,7 +50,7 @@ type Default struct {
 }
 
 // InitDB
-func InitDB(user, pass, address string) (*DB, error) {
+func InitDB(user, pass, address string) (*SqlDB, error) {
 	db, err := connect(user, pass, address, "")
 	if err != nil {
 		return nil, err
@@ -74,7 +74,7 @@ func InitDB(user, pass, address string) (*DB, error) {
 		return nil, err
 	}
 
-	return &DB{DB: db, read: read, write: db}, nil
+	return &SqlDB{read: read, write: db}, nil
 }
 
 func connect(user, pass, address, schema string) (*sqlx.DB, error) {
@@ -95,17 +95,21 @@ func NewGUID() string {
 	return ksuid.New().String()
 }
 
-func (db *DB) Write(sql string, args interface{}) error {
+func (db *SqlDB) Write(sql string, args interface{}) error {
 	_, err := db.write.NamedExec(sql, args)
 	return err
 }
 
-func (db *DB) Read(out interface{}, sql string, args ...interface{}) error {
+func (db *SqlDB) Read(out interface{}, sql string, args ...interface{}) error {
 	return db.read.Unsafe().Select(out, sql, args...)
 }
 
-func (db *DB) ReadOne(out interface{}, sql string, args ...interface{}) error {
+func (db *SqlDB) ReadOne(out interface{}, sql string, args ...interface{}) error {
 	return db.read.Unsafe().Get(out, sql, args...)
+}
+
+func (db *SqlDB) Exec(sql string, args ...interface{}) (sql.Result, error) {
+	return db.write.Unsafe().Exec(sql, args...)
 }
 
 // NullTime represents a time.Time that may be null. NullTime implements the

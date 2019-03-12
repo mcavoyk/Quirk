@@ -49,7 +49,6 @@ func marshalUser(user *User) *models.User {
 		Email:       user.Email,
 		Password:    hashSalt(user.Password),
 	}
-	newUser.ID = models.NewGUID()
 	return newUser
 }
 
@@ -64,13 +63,12 @@ func (env *Env) CreateUser(c *gin.Context) {
 		newUser.Username = randomName()
 	}
 
-	existingUser := models.User{}
-	err := env.db.ReadOne(&existingUser, models.SelectUserByName, newUser.Username)
-	if err == nil {
+	_, err := env.db.ReadUserByName(newUser.Username)
+	if err == nil { // If no error, that username exists and cannot be used
 		if randomUser {
 			for err == nil {
 				newUser.Username = randomName()
-				err = env.db.ReadOne(&models.User{}, models.SelectUserByName, newUser.Username)
+				_, err = env.db.ReadUserByName(newUser.Username)
 			}
 		} else {
 			c.JSON(http.StatusBadRequest, gin.H{"status": "Username already exists"})
@@ -84,25 +82,18 @@ func (env *Env) CreateUser(c *gin.Context) {
 		newUser.Password = NewPass()
 	}
 
-	err = env.db.Write(models.InsertUser, marshalUser(newUser))
+	createdUser, err := env.db.AddUser(marshalUser(newUser))
 	if err != nil {
-		logrus.Errorf("Received Write Error: %s", err.Error())
+		logrus.Errorf("Error adding user: %s", err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{"status": err.Error()})
 		return
 	}
 
-	user := models.User{}
-	err = env.db.ReadOne(&user, models.SelectUserByName, newUser.Username)
-	if err != nil {
-		logrus.Errorf("Read user error: %s", err.Error())
-		c.JSON(http.StatusInternalServerError, gin.H{"status": "internal server error"})
-		return
-	}
-	user.Password = ""
+	createdUser.Password = ""
 	if randomPassword {
-		user.Password = newUser.Password
+		createdUser.Password = newUser.Password
 	}
-	c.JSON(http.StatusCreated, user)
+	c.JSON(http.StatusCreated, createdUser)
 }
 
 func (env *Env) GetUser(c *gin.Context) {

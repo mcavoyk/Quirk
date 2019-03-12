@@ -35,14 +35,14 @@ func TestCreateUserAlreadyExists(t *testing.T) {
 	username := "testUser417"
 
 	store := &mocks.Store{}
-	store.On("ReadOne", mock.AnythingOfType("*models.User"), models.SelectUserByName, username).
-		Return(nil)
+	store.On("ReadUserByName", mock.AnythingOfType("string")).Return(nil, nil)
 
 	router := NewRouter(store, viper.New())
 	body := map[string]interface{}{"username": username}
 	w := performRequest(router, http.MethodPost, ApiV1+"/user", body)
 
-	assertStore(t, store, storeFunc{ReadOne: 1})
+	store.AssertNumberOfCalls(t, "ReadUserByName", 1)
+	store.AssertNotCalled(t, "AddUser")
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 

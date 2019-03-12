@@ -4,15 +4,6 @@ import (
 	"time"
 )
 
-// User
-type User struct {
-	Default
-	Username    string `json:"username"`
-	DisplayName string `json:"display_name"`
-	Password    string `json:"password,omitempty"`
-	Email       string `json:"email"`
-}
-
 // Session represents a User's login session
 type Session struct {
 	ID        string    `json:"id"`
