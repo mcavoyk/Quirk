@@ -49,3 +49,8 @@ type Vote struct {
 	PostID string `json:"post_id" binding:"-"`
 	Vote   int    `json:"vote" form:"state" binding:"min=-1,max=1"`
 }
+
+type StoreBase interface {
+	Close() error
+	Ping() error
+}

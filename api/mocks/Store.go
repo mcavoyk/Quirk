@@ -34,6 +34,20 @@ func (_m *Store) AddUser(_a0 *models.User) (*models.User, error) {
 	return r0, r1
 }
 
+// Close provides a mock function with given fields:
+func (_m *Store) Close() error {
+	ret := _m.Called()
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func() error); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // DeleteUser provides a mock function with given fields: _a0
 func (_m *Store) DeleteUser(_a0 string) error {
 	ret := _m.Called(_a0)
@@ -72,6 +86,20 @@ func (_m *Store) Exec(_a0 string, args ...interface{}) (sql.Result, error) {
 	}
 
 	return r0, r1
+}
+
+// Ping provides a mock function with given fields:
+func (_m *Store) Ping() error {
+	ret := _m.Called()
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func() error); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }
 
 // Read provides a mock function with given fields: out, _a1, args

@@ -22,6 +22,7 @@ type SqlDB struct {
 
 //go:generate mockery -name Store -output ../mocks
 type Store interface {
+	StoreBase
 	UserService
 	Exec(sql string, args ...interface{}) (sql.Result, error)
 	Write(sql string, args interface{}) error
@@ -93,6 +94,15 @@ func connect(user, pass, address, schema string) (*sqlx.DB, error) {
 
 func NewGUID() string {
 	return ksuid.New().String()
+}
+
+func (db *SqlDB) Ping() error {
+	return db.read.Ping()
+}
+
+func (db *SqlDB) Close() error {
+	db.write.Close()
+	return db.read.Close()
 }
 
 func (db *SqlDB) Write(sql string, args interface{}) error {

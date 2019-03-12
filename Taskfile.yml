@@ -1,0 +1,40 @@
+version: '2'
+
+output: prefixed
+vars:
+  name: quirk_api
+  base: {sh: pwd}
+  gobase: "{{.base}}/api"
+  bin: "{{.base}}/bin"
+
+tasks:
+  clean:
+    silent: true
+    cmds:
+      - echo "  >  Cleaning build cache..."
+      - rm -rf {{.bin}}
+  generate:
+    silent: true
+    cmds:
+      - go generate {{.gobase}}/models
+  build:
+    silent: true
+    desc: Build the go binary
+    deps: [clean, generate]
+    vars:
+      OS: "{{OS}}"
+    cmds:
+      - echo "  >  Building {{.OS}} binary..."
+      - CGO_ENABLED=0 go build -o "{{.bin}}/{{.name}}" {{.gobase}}
+  docker:
+    silent: true
+    desc: Build go binary and dockerfile
+    cmds:
+      - task: build
+        vars: {OS: "linux"}
+      - docker build -t {{.name}} .
+  test:
+    silent: true
+    desc: Run unit and integration tests
+    cmds:
+      - go test `go list ./api/... | grep -v tests` -v -cover
